@@ -1,0 +1,6 @@
+{
+  "loadedFromFile": null,
+  "datasource": {
+    "url": "postgresql://neondb_owner:npg_jChszKwL2v7A@ep-falling-credit-aiotql7t-pooler.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require"
+  }
+}
