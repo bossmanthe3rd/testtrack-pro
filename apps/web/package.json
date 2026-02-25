@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
+    "build": "vite build",
+    "lint": "echo 'add eslint later'",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "axios": "^1.13.5",

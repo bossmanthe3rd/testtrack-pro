@@ -3,10 +3,10 @@ dotenv.config();
 
 import express from "express";
 import cors from "cors";
-import { prisma } from "./config/prisma";
-import authRoutes from "./routes/auth.routes";
-import { authenticate } from "./middleware/auth.middleware";
-import { authorize } from "./middleware/role.middleware";
+import { prisma } from "./config/prisma.js";
+import authRoutes from "./routes/auth.routes.js";
+import { authenticate } from "./middleware/auth.middleware.js";
+import { authorize } from "./middleware/role.middleware.js";
 
 const app = express();
 

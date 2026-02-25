@@ -1,4 +1,38 @@
+import { useState } from "react";
+import { api } from "../services/api";
+
 export default function Login() {
-    return <div className="p-4 text-xl">Home Page</div>;
-  }
-  
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const handleLogin = async () => {
+    try {
+      const res = await api.post("/api/auth/login", {
+        email,
+        password,
+      });
+
+      localStorage.setItem("token", res.data.token);
+
+      alert("Login successful!");
+    } catch (err) {
+      alert("Login failed");
+    }
+  };
+
+  return (
+    <div>
+      <h1>Login</h1>
+      <input
+        placeholder="Email"
+        onChange={(e) => setEmail(e.target.value)}
+      />
+      <input
+        type="password"
+        placeholder="Password"
+        onChange={(e) => setPassword(e.target.value)}
+      />
+      <button onClick={handleLogin}>Login</button>
+    </div>
+  );
+}
