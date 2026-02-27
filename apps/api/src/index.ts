@@ -3,17 +3,22 @@ dotenv.config();
 
 import express from "express";
 import cors from "cors";
-import { prisma } from "./config/prisma.js";
-import authRoutes from "./routes/auth.routes.js";
-import { authenticate } from "./middleware/auth.middleware.js";
-import { authorize } from "./middleware/role.middleware.js";
+import cookieParser from "cookie-parser";
+import { prisma } from "./config/prisma";
+import authRoutes from "./routes/auth.routes";
+import { authenticate } from "./middleware/auth.middleware";
+import { authorize } from "./middleware/role.middleware";
 
 const app = express();
-
-app.use(cors());
+app.use(
+  cors({
+    origin: "http://localhost:5173", // Only allow your React app
+    credentials: true,               // Allow the secret cookies to pass!
+  })
+);
 app.use(express.json());
-
-app.use("/api/auth", authRoutes);
+app.use(cookieParser());
+app.use("/auth", authRoutes);
 
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });

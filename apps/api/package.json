@@ -1,11 +1,10 @@
 {
   "name": "api",
   "version": "1.0.0",
-  "type": "module",
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "ts-node-dev --respawn src/index.ts",
+    "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "lint": "echo 'add eslint later'",
     "typecheck": "tsc --noEmit"
@@ -16,7 +15,9 @@
   "packageManager": "pnpm@10.29.3",
   "dependencies": {
     "@prisma/client": "^6.19.2",
+    "bcrypt": "^6.0.0",
     "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
@@ -25,7 +26,9 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
     "@types/bcryptjs": "^2.4.6",
+    "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
@@ -35,5 +38,8 @@
     "tsup": "^8.5.1",
     "tsx": "^4.21.0",
     "typescript": "~5.9.3"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seeds.ts"
   }
 }

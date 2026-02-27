@@ -1,35 +1,32 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET!;
-
+// TypeScript needs to know that we are adding a 'user' property to the standard Express Request
 export interface AuthRequest extends Request {
-  user?: {
-    userId: string;
-    role: string;
-  };
+  user?: any;
 }
 
-export const authenticate = (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  const authHeader = req.headers.authorization;
-
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({ error: "Unauthorized" });
-  }
-
-  const token = authHeader.split(" ")[1];
-
+export const authenticate = (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    // 1. Look for the Authorization header
+    const authHeader = req.headers.authorization;
 
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      res.status(401).json({ success: false, message: "Access denied. No token provided." });
+      return;
+    }
+
+    // 2. Extract the token (split "Bearer <token>" by the space and take the second part)
+    const token = authHeader.split(" ")[1];
+    // 3. Verify the token using your secret key
+    const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET as string);
+
+    // 4. Attach the decoded user payload (id and role) to the request object
     req.user = decoded;
 
+    // 5. Tell Express to move on to the next function (the Controller)
     next();
-  } catch (err) {
-    return res.status(401).json({ error: "Invalid or expired token" });
+  } catch (error) {
+    res.status(401).json({ success: false, message: "Invalid or expired token." });
   }
 };

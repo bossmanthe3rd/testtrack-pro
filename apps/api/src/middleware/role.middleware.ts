@@ -1,14 +1,23 @@
 import { Response, NextFunction } from "express";
-import { AuthRequest } from "./auth.middleware.js";
+import { AuthRequest } from "./auth.middleware";
 
+// This is a "factory" function. It takes a list of allowed roles and returns a middleware function.
 export const authorize = (...allowedRoles: string[]) => {
-    return (req: AuthRequest, res: Response, next: NextFunction) => {
-        const userRole = req.user?.role;
+  return (req: AuthRequest, res: Response, next: NextFunction) => {
+    
+    // Safety check: Make sure authenticate middleware ran first
+    if (!req.user || !req.user.role) {
+      res.status(403).json({ success: false, message: "User role not found." });
+      return;
+    }
 
-        if (!userRole || !allowedRoles.includes(userRole)) {
-            return res.status(403).json({ error: "Forbidden" });
-        }
+    // Check if the user's role is in the list of allowed roles
+    if (!allowedRoles.includes(req.user.role)) {
+      res.status(403).json({ success: false, message: "Forbidden. You do not have permission." });
+      return;
+    }
 
-        next();
-    };
+    // They have permission! Let them through.
+    next();
+  };
 };

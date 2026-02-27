@@ -1,0 +1,54 @@
+🌱 Starting database seeding...
+✅ Created Tester: Jane Tester
+✅ Created Developer: Mike Developer
+✅ Created Project: TestTrack Pro Web Portal
+❌ Error during seeding: PrismaClientValidationError: 
+Invalid `prisma.testCase.upsert()` invocation in
+C:\Users\Himank Sharma\testtrack\apps\api\prisma\seeds.ts:50:44
+
+  47 console.log(`✅ Created Project: ${project.name}`);
+  48 
+  49 // 5. Create a Sample Test Case with nested Test Steps
+→ 50 const testCase = await prisma.testCase.upsert({
+       where: {
+         testCaseId: "TC-2024-00001"
+       },
+       update: {},
+       create: {
+         testCaseId: "TC-2024-00001",
+         title: "Verify user login with valid credentials",
+         description: "This test verifies that a registered user can successfully log into the system using valid email and password combination",
+         module: "Authentication",
+         priority: "P1",
+         severity: "BLOCKER",
+         status: "APPROVED",
+         createdById: "172aa18b-db4d-4c9d-ac31-815cc5076c42",
+         projectId: "2ed8dd6e-2ff0-47e2-afcd-fdc382a8c1f6",
+         steps: {
+           create: [
+             {
+               stepNumber: 1,
+               action: "Navigate to login page at /login",
+               expectedResult: "Login page loads with email and password fields visible"
+             },
+             {
+               stepNumber: 2,
+               action: "Enter valid email and password, then click Sign In",
+               testData: "Email: jane.tester@company.com",
+               expectedResult: "User is authenticated and redirected to dashboard"
+             }
+           ]
+         },
+     +   type: String
+       }
+     })
+
+Argument `type` is missing.
+    at throwValidationException (C:\Users\Himank Sharma\testtrack\node_modules\.pnpm\@prisma+client@6.19.2_prism_6b2b1af085fe6797f5a5ea830937a8e3\node_modules\@prisma\client\src\runtime\core\errorRendering\throwValidationException.ts:45:9)
+    at ei.handleRequestError (C:\Users\Himank Sharma\testtrack\node_modules\.pnpm\@prisma+client@6.19.2_prism_6b2b1af085fe6797f5a5ea830937a8e3\node_modules\@prisma\client\src\runtime\RequestHandler.ts:202:7)
+    at ei.handleAndLogRequestError (C:\Users\Himank Sharma\testtrack\node_modules\.pnpm\@prisma+client@6.19.2_prism_6b2b1af085fe6797f5a5ea830937a8e3\node_modules\@prisma\client\src\runtime\RequestHandler.ts:174:12)
+    at ei.request (C:\Users\Himank Sharma\testtrack\node_modules\.pnpm\@prisma+client@6.19.2_prism_6b2b1af085fe6797f5a5ea830937a8e3\node_modules\@prisma\client\src\runtime\RequestHandler.ts:143:12)
+    at async a (C:\Users\Himank Sharma\testtrack\node_modules\.pnpm\@prisma+client@6.19.2_prism_6b2b1af085fe6797f5a5ea830937a8e3\node_modules\@prisma\client\src\runtime\getPrismaClient.ts:833:24)
+    at async main (C:\Users\Himank Sharma\testtrack\apps\api\prisma\seeds.ts:50:22) {
+  clientVersion: '6.19.2'
+}

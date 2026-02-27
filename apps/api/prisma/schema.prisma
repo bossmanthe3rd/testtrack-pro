@@ -7,17 +7,257 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  role      Role     @default(TESTER)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
+// --- ENUMS ---
 
 enum Role {
   TESTER
   DEVELOPER
   ADMIN
+}
+
+enum Priority {
+  P1
+  P2
+  P3
+  P4
+}
+
+enum Severity {
+  BLOCKER
+  CRITICAL
+  MAJOR
+  MINOR
+  TRIVIAL
+}
+
+enum TestCaseStatus {
+  DRAFT
+  REVIEW
+  APPROVED
+  ARCHIVED
+}
+
+enum ExecutionStatus {
+  PASS
+  FAIL
+  BLOCKED
+  SKIPPED
+}
+
+enum BugStatus {
+  NEW
+  OPEN
+  IN_PROGRESS
+  FIXED
+  VERIFIED
+  CLOSED
+  REOPENED
+  WONT_FIX
+  DUPLICATE
+}
+
+enum AutomationStatus {
+  NOT_AUTOMATED
+  IN_PROGRESS
+  AUTOMATED
+  CANNOT_AUTOMATE
+}
+
+// --- MODELS ---
+
+model User {
+  id                  String         @id @default(uuid())
+  name                String
+  email               String         @unique
+  password            String         // Securely hashed password
+  role                Role           @default(TESTER)
+  failedLoginAttempts Int            @default(0)
+  lockUntil           DateTime?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  // Relations
+  createdTestCases    TestCase[]     @relation("UserCreatedTests")
+  assignedBugs        Bug[]          @relation("BugAssignee")
+  reportedBugs        Bug[]          @relation("BugReporter")
+  executions          Execution[]
+  comments            Comment[]
+  notifications       Notification[]
+  testRuns            TestRun[]
+}
+
+model Project {
+  id          String      @id @default(uuid())
+  name        String
+  description String?     @db.Text
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relations
+  testCases   TestCase[]
+  testSuites  TestSuite[]
+  testRuns    TestRun[]
+  bugs        Bug[]
+}
+
+model TestCase {
+  id                      String           @id @default(uuid())
+  testCaseId              String           @unique // TC-2024-00142
+  title                   String
+  description             String           @db.Text
+  module                  String           
+  priority                Priority         @default(P3)
+  severity                Severity         @default(MAJOR)
+  type                    String           // e.g., Functional, Regression
+  status                  TestCaseStatus   @default(DRAFT)
+  preConditions           String?          @db.Text
+  testDataRequirements    String?          @db.Text
+  environmentRequirements String?          @db.Text
+  postConditions          String?          @db.Text
+  cleanupSteps            String?          @db.Text
+  estimatedDuration       Int?             // In minutes
+  automationStatus        AutomationStatus @default(NOT_AUTOMATED)
+  automationScriptLink    String?
+  version                 Int              @default(1)
+  
+  // Foreign Keys
+  createdById             String
+  projectId               String
+  
+  // Timestamps
+  createdAt               DateTime         @default(now())
+  updatedAt               DateTime         @updatedAt
+  deletedAt               DateTime?        
+
+  // Relations
+  createdBy               User             @relation("UserCreatedTests", fields: [createdById], references: [id])
+  project                 Project          @relation(fields: [projectId], references: [id])
+  steps                   TestStep[]
+  suites                  SuiteTestCase[]
+  executions              Execution[]
+  bugs                    Bug[]
+  comments                Comment[]        @relation("TestCaseComments")
+}
+
+model TestStep {
+  id             String   @id @default(uuid())
+  stepNumber     Int      
+  action         String   @db.Text
+  testData       String?  @db.Text
+  expectedResult String   @db.Text
+  testCaseId     String
+  testCase       TestCase @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
+}
+
+model TestSuite {
+  id          String          @id @default(uuid())
+  name        String
+  description String?         @db.Text
+  projectId   String
+  project     Project         @relation(fields: [projectId], references: [id])
+  testCases   SuiteTestCase[] 
+}
+
+model SuiteTestCase {
+  suiteId    String
+  testCaseId String
+  order      Int      
+  suite      TestSuite @relation(fields: [suiteId], references: [id], onDelete: Cascade)
+  testCase   TestCase  @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
+
+  @@id([suiteId, testCaseId])
+}
+
+model TestRun {
+  id           String      @id @default(uuid())
+  name         String
+  description  String?
+  startDate    DateTime?
+  endDate      DateTime?
+  projectId    String
+  createdById  String
+
+  project      Project     @relation(fields: [projectId], references: [id])
+  createdBy    User        @relation(fields: [createdById], references: [id])
+  executions   Execution[]
+}
+
+model Execution {
+  id            String          @id @default(uuid())
+  testCaseId    String
+  testRunId     String?
+  executedById  String
+  overallStatus ExecutionStatus @default(BLOCKED)
+  startedAt     DateTime        @default(now())
+  completedAt   DateTime?
+  duration      Int?            
+
+  testCase      TestCase        @relation(fields: [testCaseId], references: [id])
+  testRun       TestRun?        @relation(fields: [testRunId], references: [id])
+  executedBy    User            @relation(fields: [executedById], references: [id])
+  steps         ExecutionStep[]
+}
+
+model ExecutionStep {
+  id           String          @id @default(uuid())
+  executionId  String
+  stepNumber   Int
+  actualResult String?         @db.Text
+  status       ExecutionStatus @default(BLOCKED)
+  notes        String?         @db.Text
+
+  execution    Execution       @relation(fields: [executionId], references: [id], onDelete: Cascade)
+}
+
+model Bug {
+  id               String    @id @default(uuid())
+  bugId            String    @unique // BUG-2024-00089
+  title            String
+  description      String    @db.Text
+  stepsToReproduce String    @db.Text
+  expectedBehavior String    @db.Text
+  actualBehavior   String    @db.Text
+  severity         Severity  @default(MAJOR)
+  priority         Priority  @default(P3)
+  status           BugStatus @default(NEW)
+  environment      String    @db.Text
+  affectedVersion  String?
+  
+  assignedToId     String?
+  reportedById     String
+  linkedTestCaseId String?
+  projectId        String
+  
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  assignedTo       User?     @relation("BugAssignee", fields: [assignedToId], references: [id])
+  reportedBy       User      @relation("BugReporter", fields: [reportedById], references: [id])
+  linkedTestCase   TestCase? @relation(fields: [linkedTestCaseId], references: [id])
+  project          Project   @relation(fields: [projectId], references: [id])
+  comments         Comment[] @relation("BugComments")
+}
+
+model Comment {
+  id         String   @id @default(uuid())
+  content    String   @db.Text
+  userId     String
+  bugId      String?
+  testCaseId String?
+  createdAt  DateTime @default(now())
+
+  user       User      @relation(fields: [userId], references: [id])
+  bug        Bug?      @relation("BugComments", fields: [bugId], references: [id], onDelete: Cascade)
+  testCase   TestCase? @relation("TestCaseComments", fields: [testCaseId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  message   String
+  isRead    Boolean  @default(false)
+  type      String   
+  userId    String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
