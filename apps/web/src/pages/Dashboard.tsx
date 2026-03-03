@@ -1,58 +1,94 @@
 import React from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+// Adjust this import path if your auth store is located elsewhere!
 import { useAuthStore } from '../features/auth/authStore';
-import { useNavigate } from 'react-router-dom';
 
-export const Dashboard: React.FC = () => {
-  // 1. Grab what we need from the Global Brain
-  const { user, logout } = useAuthStore();
+export const Dashboard = () => {
+  // Grab the user details and logout function from your Zustand store
+  const user = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
   const navigate = useNavigate();
 
-  // 2. The Logout Handler
   const handleLogout = async () => {
-    await logout(); // Calls our Zustand logout action (which talks to the backend)
-    navigate('/login'); // Sends them back to the login page
+    await logout(); // Call your backend logout
+    navigate('/login'); // Send them back to the login screen
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="mx-auto max-w-4xl rounded-lg bg-white p-6 shadow-md">
-        
-        {/* Header Section */}
-        <div className="flex items-center justify-between border-b pb-4">
-          <h1 className="text-2xl font-bold">Welcome, {user?.name}!</h1>
+    <div className="flex h-screen bg-gray-50">
+
+      {/* --- SIDEBAR --- */}
+      <div className="w-64 bg-white shadow-lg flex flex-col">
+        <div className="p-6 border-b border-gray-100">
+          {/* App Title */}
+          <h2 className="text-2xl font-bold text-blue-600">TestTrack Pro</h2>
+        </div>
+
+        {/* Navigation Links */}
+        <nav className="flex-1 p-4 space-y-2">
+          <Link
+            to="/"
+            className="block px-4 py-3 rounded-lg text-gray-700 hover:bg-blue-50 hover:text-blue-700 font-medium transition-colors"
+          >
+            Dashboard
+          </Link>
+          <Link
+            to="/test-cases"
+            className="block px-4 py-3 rounded-lg text-gray-700 hover:bg-blue-50 hover:text-blue-700 font-medium transition-colors"
+          >
+            Test Cases
+          </Link>
+          {/* We will add Bug Reports and Test Runs here later! */}
+        </nav>
+
+        {/* User Info & Logout */}
+        <div className="p-4 border-t border-gray-100 bg-gray-50">
+          <div className="mb-4">
+            <p className="text-xs text-gray-500 uppercase tracking-wider">Logged in as</p>
+            <p className="text-sm font-bold text-gray-800 truncate">{user?.name || 'User'}</p>
+            <p className="text-xs text-gray-500 capitalize">{user?.role?.toLowerCase() || 'Tester'}</p>
+          </div>
           <button
             onClick={handleLogout}
-            className="rounded-md bg-red-600 px-4 py-2 text-white hover:bg-red-700 transition"
+            className="w-full bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 py-2 rounded-lg text-sm font-medium transition"
           >
-            Logout
+            Sign Out
           </button>
         </div>
-        
-        {/* Role-Based Content Section */}
-        <div className="mt-6">
-          <h2 className="text-lg font-semibold text-gray-700">Your Role: {user?.role}</h2>
-          
-          {/* Conditional Rendering: Only Testers see this block */}
-          {user?.role === 'TESTER' && (
-            <div className="mt-4 rounded border border-blue-200 bg-blue-50 p-4">
-              <h3 className="font-bold text-blue-800">Tester Workspace</h3>
-              <p className="text-blue-600">
-                Here you will be able to create test cases, execute them, and report bugs.
-              </p>
-            </div>
-          )}
+      </div>
 
-          {/* Conditional Rendering: Only Developers see this block */}
-          {user?.role === 'DEVELOPER' && (
-            <div className="mt-4 rounded border border-green-200 bg-green-50 p-4">
-              <h3 className="font-bold text-green-800">Developer Workspace</h3>
-              <p className="text-green-600">
-                Here you will see your assigned bugs, update their statuses, and add fix notes.
-              </p>
-            </div>
-          )}
+      {/* --- MAIN CONTENT AREA --- */}
+      <div className="flex-1 p-8 overflow-y-auto">
+        <h1 className="text-3xl font-bold text-gray-800 mb-6">
+          Welcome back, {user?.name?.split(' ')[0] || 'there'}!
+        </h1>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          {/* Placeholder Widgets for later */}
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <h3 className="text-gray-500 text-sm font-medium mb-1">Total Tests</h3>
+            <p className="text-3xl font-bold text-gray-800">--</p>
+          </div>
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <h3 className="text-gray-500 text-sm font-medium mb-1">Open Bugs</h3>
+            <p className="text-3xl font-bold text-red-600">--</p>
+          </div>
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <h3 className="text-gray-500 text-sm font-medium mb-1">Pass Rate</h3>
+            <p className="text-3xl font-bold text-green-600">--%</p>
+          </div>
+        </div>
+
+        <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100 text-center">
+          <p className="text-gray-600 text-lg">
+            Your dashboard is looking a little empty right now. <br />
+            Head over to the <Link to="/test-cases" className="text-blue-600 hover:underline font-medium">Test Cases</Link> tab to see your new table!
+          </p>
         </div>
       </div>
+
     </div>
   );
 };
+
+export default Dashboard;

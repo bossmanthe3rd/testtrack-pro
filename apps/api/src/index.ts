@@ -6,8 +6,9 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import { prisma } from "./config/prisma";
 import authRoutes from "./routes/auth.routes";
-import { authenticate } from "./middleware/auth.middleware";
+import { authMiddleware } from "./middleware/auth.middleware";
 import { authorize } from "./middleware/role.middleware";
+import testCaseRoutes from './modules/test-case/testCase.routes';
 
 const app = express();
 app.use(
@@ -18,7 +19,8 @@ app.use(
 );
 app.use(express.json());
 app.use(cookieParser());
-app.use("/auth", authRoutes);
+app.use("/api/auth", authRoutes);
+app.use('/api/test-cases', testCaseRoutes);
 
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });
@@ -26,7 +28,7 @@ app.get("/health", (req, res) => {
 
 app.get(
   "/api/protected/tester",
-  authenticate,
+  authMiddleware,
   authorize("TESTER"),
   (req, res) => {
     res.json({ message: "Tester access granted" });
@@ -35,7 +37,7 @@ app.get(
 
 app.get(
   "/api/protected/admin",
-  authenticate,
+  authMiddleware,
   authorize("ADMIN"),
   (req, res) => {
     res.json({ message: "Admin access granted" });

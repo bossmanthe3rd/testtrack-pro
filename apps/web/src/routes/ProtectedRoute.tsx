@@ -1,10 +1,10 @@
 import React, { useEffect } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Outlet } from 'react-router-dom';
 import { useAuthStore } from '../features/auth/authStore';
 
 // 1. Define the Blueprint for the Props (What this frame expects to receive)
 interface ProtectedRouteProps {
-  children: React.ReactNode; // The page we are protecting (e.g., Dashboard)
+  children?: React.ReactNode; // The page we are protecting (e.g., Dashboard)
   allowedRoles?: ('TESTER' | 'DEVELOPER' | 'ADMIN')[]; // Optional list of allowed roles
 }
 
@@ -52,5 +52,5 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowe
   }
 
   // 8. If they passed all checks, render the actual page!
-  return <>{children}</>;
+  return children ? <>{children}</> : <Outlet />;
 };

@@ -45,7 +45,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       set({ isLoading: true });
       // Call our backend protected route to get the user data
-      const response = await api.get('/auth/me');
+      const response = await api.get('/api/auth/me');
 
       // If successful, update the brain with the user's data
       set({

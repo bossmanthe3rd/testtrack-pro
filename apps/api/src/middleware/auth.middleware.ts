@@ -1,32 +1,49 @@
-import { Request, Response, NextFunction } from "express";
-import jwt from "jsonwebtoken";
+import { Request, Response, NextFunction } from 'express';
+import jwt from 'jsonwebtoken';
 
-// TypeScript needs to know that we are adding a 'user' property to the standard Express Request
 export interface AuthRequest extends Request {
   user?: any;
 }
 
-export const authenticate = (req: AuthRequest, res: Response, next: NextFunction) => {
+// This is the security guard for your backend routes!
+export const authMiddleware = (req: AuthRequest, res: Response, next: NextFunction) => {
+  // 1. Grab the Authorization header sent by Axios
+  if (req.method === 'OPTIONS') {
+    return next();
+  }
+
+  const authHeader = req.headers.authorization;
+// CAMERA 5: Did the token actually arrive at the backend?
+  console.log("--> AUTH MIDDLEWARE HIT! Header received:", authHeader);
+  // 2. Check if it exists and starts with "Bearer "
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ 
+      success: false, 
+      message: 'Access denied. No token provided or wrong format.' 
+    });
+  }
+
+  // 3. Split "Bearer <token>" to just get the <token> part
+  const token = authHeader.split(' ')[1];
+
   try {
-    // 1. Look for the Authorization header
-    const authHeader = req.headers.authorization;
-
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      res.status(401).json({ success: false, message: "Access denied. No token provided." });
-      return;
-    }
-
-    // 2. Extract the token (split "Bearer <token>" by the space and take the second part)
-    const token = authHeader.split(" ")[1];
-    // 3. Verify the token using your secret key
+    // 4. Verify the token using your secret key
     const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET as string);
 
-    // 4. Attach the decoded user payload (id and role) to the request object
-    req.user = decoded;
+    // 5. Attach the decoded user info to the request so the controller can use it
+    (req as any).user = decoded;
 
-    // 5. Tell Express to move on to the next function (the Controller)
+    // 6. Let the user through!
     next();
-  } catch (error) {
-    res.status(401).json({ success: false, message: "Invalid or expired token." });
+  } catch (error: any) {
+    // CAMERA 4: Why did jwt.verify crash?!
+    console.error("JWT VERIFY FAILED:", error.message);
+    console.error("SECRET USED:", process.env.JWT_ACCESS_SECRET);
+
+    return res.status(401).json({ 
+      success: false, 
+      message: 'Invalid or expired token.',
+      errorDetail: error.message // Sending it to the frontend just to be helpful while debugging
+    });
   }
 };

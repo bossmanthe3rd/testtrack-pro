@@ -1,0 +1,6 @@
+src/App.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/features/auth/authStore.ts(26,53): error TS6133: 'get' is declared but its value is never read.
+src/pages/CreateTestCase.tsx(1,1): error TS6133: 'React' is declared but its value is never read.
+src/pages/Dashboard.tsx(1,1): error TS6133: 'React' is declared but its value is never read.
+src/pages/EditTestCase.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/pages/TestCaseList.tsx(1,8): error TS6133: 'React' is declared but its value is never read.

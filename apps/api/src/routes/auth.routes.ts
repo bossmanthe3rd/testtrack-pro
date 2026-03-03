@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { register, login, logout, refresh } from "../controllers/auth.controller";
-// Make sure to import your auth middleware! 
-// (Adjust the path if your middleware is in a different folder)
-import { authenticate } from "../middleware/auth.middleware";
+
+// FIX 1: Import the exact name that was exported from the middleware file!
+import { authMiddleware } from "../middleware/auth.middleware";
 
 const router = Router();
 
@@ -12,11 +12,8 @@ router.post("/login", login);
 router.post("/logout", logout);
 router.post("/refresh", refresh);
 
-// 2. Add the /me route to fix the Silent Bounce!
-// This route is protected by authenticate, so only users with valid tokens can enter
-router.get("/me", authenticate, (req, res) => {
-    // The authenticate middleware should have attached the user data to the request.
-    // We grab it and send it right back to the frontend.
+// FIX 2: Use authMiddleware here instead of authenticate
+router.get("/me", authMiddleware, (req, res) => {
     res.json({
         id: (req as any).user.id,
         email: (req as any).user.email,
@@ -25,5 +22,4 @@ router.get("/me", authenticate, (req, res) => {
     });
 });
 
-// 3. ALWAYS put the export at the very bottom!
 export default router;

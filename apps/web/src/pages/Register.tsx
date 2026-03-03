@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useNavigate, Link } from 'react-router-dom';
 import { api } from '../features/auth/api';
+import axios from 'axios';
 
 // 1. Define the Zod Schema (The rules for the form)
 const registerSchema = z.object({
@@ -38,15 +39,19 @@ export const Register: React.FC = () => {
     try {
       setServerError('');
       // Send the data to the backend endpoint we built on Day 3
-      await api.post('/auth/register', {
+      await api.post('/api/auth/register', {
         name: data.name,
         email: data.email,
         password: data.password,
       });
       // If successful, send them to the login page!
       navigate('/login');
-    } catch (error: any) {
-      setServerError(error.response?.data?.message || 'Registration failed');
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        setServerError(error.response?.data?.message || 'Registration failed');
+      } else {
+        setServerError('Registration failed');
+      }
     }
   };
 
