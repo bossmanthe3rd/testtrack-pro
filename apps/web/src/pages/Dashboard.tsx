@@ -1,19 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-// Adjust this import path if your auth store is located elsewhere!
 import { useAuthStore } from '../features/auth/authStore';
 import { getBugs } from '../services/bugApi';
 
 export const Dashboard = () => {
-  // Grab the user details and logout function from your Zustand store
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
   const navigate = useNavigate();
 
-  // State to hold the dynamic bug count
   const [bugCount, setBugCount] = useState<number | string>('--');
 
-  // Fetch the actual bug count when the dashboard loads
   useEffect(() => {
     const fetchBugStats = async () => {
       try {
@@ -27,8 +23,8 @@ export const Dashboard = () => {
   }, []);
 
   const handleLogout = async () => {
-    await logout(); // Call your backend logout
-    navigate('/login'); // Send them back to the login screen
+    await logout(); 
+    navigate('/login'); 
   };
 
   return (
@@ -37,7 +33,6 @@ export const Dashboard = () => {
       {/* --- SIDEBAR --- */}
       <div className="w-64 bg-white shadow-lg flex flex-col">
         <div className="p-6 border-b border-gray-100">
-          {/* App Title */}
           <h2 className="text-2xl font-bold text-blue-600">TestTrack Pro</h2>
         </div>
 
@@ -61,14 +56,22 @@ export const Dashboard = () => {
           >
             Test Suites
           </Link>
-          
-          {/* NEW: Added the Bug Tracker Link to the sidebar! */}
           <Link
             to="/bugs"
             className="block px-4 py-3 rounded-lg text-gray-700 hover:bg-red-50 hover:text-red-700 font-medium transition-colors"
           >
             Bug Tracker
           </Link>
+
+          {/* 🟢 NEW: Show Developer Workspace Link ONLY to Developers */}
+          {user?.role === 'DEVELOPER' && (
+            <Link
+              to="/developer/dashboard"
+              className="block px-4 py-3 rounded-lg text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 font-medium transition-colors bg-indigo-50/50 border border-indigo-100 mt-4"
+            >
+              Dev Workspace →
+            </Link>
+          )}
         </nav>
 
         {/* User Info & Logout */}
@@ -94,13 +97,11 @@ export const Dashboard = () => {
         </h1>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          {/* Placeholder Widgets for later */}
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
             <h3 className="text-gray-500 text-sm font-medium mb-1">Total Tests</h3>
             <p className="text-3xl font-bold text-gray-800">--</p>
           </div>
           
-          {/* UPDATED: Dynamic Bug Count Widget */}
           <div 
             onClick={() => navigate('/bugs')}
             className="bg-white p-6 rounded-xl shadow-sm border-t-4 border-t-red-500 border border-gray-100 cursor-pointer hover:shadow-md transition"
@@ -135,13 +136,22 @@ export const Dashboard = () => {
             >
               Manage Test Suites
             </button>
-            {/* NEW: Quick action button for Bugs */}
             <button 
               onClick={() => navigate('/bugs')}
               className="bg-red-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-red-700 transition shadow-sm"
             >
               View Bug Tracker
             </button>
+
+            {/* 🟢 NEW: Show Dev Workspace Button ONLY to Developers */}
+            {user?.role === 'DEVELOPER' && (
+              <button 
+                onClick={() => navigate('/developer/dashboard')}
+                className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-indigo-700 transition shadow-sm"
+              >
+                Go to Dev Workspace
+              </button>
+            )}
           </div>
         </div>
       </div>

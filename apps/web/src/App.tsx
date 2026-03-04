@@ -10,15 +10,19 @@ import { useAuthStore } from './features/auth/authStore';
 import TestCaseList from './pages/TestCaseList';
 import CreateTestCase from './pages/CreateTestCase';
 import EditTestCase from './pages/EditTestCase';
-// --- NEW: Test Execution Page ---
 import ExecuteTestCase from './pages/ExecuteTestCase';
 
 // Test Suite Pages
 import TestSuites from './pages/TestSuites';
 import ManageTestSuite from './pages/ManageTestSuite';
 
+// Bug Management Pages
 import CreateBug from './pages/CreateBug';
 import BugList from './pages/BugList';
+
+// 🟢 DAY 10 NEW IMPORTS: Developer Workflow
+import DeveloperDashboard from './pages/DeveloperDashboard';
+import BugDetail from './pages/BugDetail';
 
 function App() {
   const { fetchMe } = useAuthStore();
@@ -45,9 +49,13 @@ function App() {
             ========================================= */}
         <Route element={<ProtectedRoute allowedRoles={["TESTER", "DEVELOPER", "ADMIN"]} />}>
           <Route path="/dashboard" element={<Dashboard />} />
-          
-          {/* Everyone can view the list of test cases */}
           <Route path="/test-cases" element={<TestCaseList />} />
+          
+          {/* We moved BugList here so Developers aren't blocked by the Tester parent route */}
+          <Route path="/bugs" element={<BugList />} />
+
+          {/* 🟢 NEW: Both roles need to see bug details to collaborate */}
+          <Route path="/bugs/:id" element={<BugDetail />} />
         </Route>
 
         {/* =========================================
@@ -55,35 +63,24 @@ function App() {
             Allowed: ONLY TESTER (and ADMIN)
             ========================================= */}
         <Route element={<ProtectedRoute allowedRoles={["TESTER", "ADMIN"]} />}>
-          
-          {/* MUST come before the edit route! */}
           <Route path="/test-cases/create" element={<CreateTestCase />} />
-          
-          {/* The dynamic ID route for editing */}
           <Route path="/test-cases/:id/edit" element={<EditTestCase />} />
-
-          {/* --- NEW: The dynamic ID route for executing --- */}
           <Route path="/test-cases/:id/execute" element={<ExecuteTestCase />} />
           
           <Route path="/test-suites" element={<TestSuites />} />
           <Route path="/test-suites/:id" element={<ManageTestSuite />} />
-          <Route 
-  path="/bugs" 
-  element={
-    <ProtectedRoute allowedRoles={["TESTER", "DEVELOPER"]}>
-      <BugList />
-    </ProtectedRoute>
-  } 
-/>
 
-<Route 
-  path="/bugs/create" 
-  element={
-    <ProtectedRoute allowedRoles={["TESTER"]}>
-      <CreateBug />
-    </ProtectedRoute>
-  } 
-/>
+          {/* Only Testers create bugs */}
+          <Route path="/bugs/create" element={<CreateBug />} />
+        </Route>
+
+        {/* =========================================
+            DEVELOPER ONLY ROUTES
+            Allowed: ONLY DEVELOPER (and ADMIN)
+            ========================================= */}
+        <Route element={<ProtectedRoute allowedRoles={["DEVELOPER", "ADMIN"]} />}>
+          {/* 🟢 NEW: Developer Dashboard */}
+          <Route path="/developer/dashboard" element={<DeveloperDashboard />} />
         </Route>
 
         {/* =========================================

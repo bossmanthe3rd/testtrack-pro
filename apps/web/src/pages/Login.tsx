@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import axios from 'axios';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -6,7 +7,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { api } from '../features/auth/api';
 import { useAuthStore } from '../features/auth/authStore';
 
-// 1. Zod Schema (Much simpler for login!)
+// 1. Zod Schema
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
   password: z.string().min(1, 'Password is required'),
@@ -30,20 +31,16 @@ export const Login: React.FC = () => {
     try {
       setServerError('');
       // Ask the backend if the credentials are correct
-      const response = await api.post('/api/auth/login', data);// CAMERA 1: What did the backend actually send us?
+      const response = await api.post('/api/auth/login', data);
       console.log("1. BACKEND RESPONSE:", response.data);
 
-      // The backend should return the tokens if successful
-      // Note: Double check if your backend sends response.data.accessToken or response.data.data.accessToken!
       const accessToken = response.data.data?.accessToken || response.data.accessToken;
       const refreshToken = response.data.data?.refreshToken || response.data.refreshToken || "";
 
-      // ---> THE FIX: Save to browser storage so Axios Interceptor can find it! <---
+      // Save to browser storage
       if (accessToken) {
         localStorage.setItem('accessToken', accessToken);
       }
-      // CAMERA 2: Did it actually save to the browser?
-      console.log("2. TOKEN IN STORAGE:", localStorage.getItem('accessToken'));
       if (refreshToken) {
         localStorage.setItem('refreshToken', refreshToken);
       }
@@ -54,11 +51,22 @@ export const Login: React.FC = () => {
       // Immediately ask the backend for the user's profile info
       await fetchMe();
 
-      // Success! Redirect them to the protected dashboard
-      navigate('/dashboard');
-    } catch (error: any) {
-      // If the backend says "Invalid credentials" or "Account locked after 5 attempts"
-      setServerError(error.response?.data?.message || 'Login failed');
+      // 🟢 NEW: SMART REDIRECTION BASED ON ROLE
+      // We use .getState() to get the freshest user data right after fetchMe() finishes
+      const currentUser = useAuthStore.getState().user;
+
+      if (currentUser?.role === 'DEVELOPER') {
+        navigate('/developer/dashboard');
+      } else {
+        navigate('/dashboard'); // Testers and Admins go here
+      }
+      
+    } catch (error: unknown) {
+      let errorMessage = 'Login failed';
+      if (axios.isAxiosError(error) && error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      setServerError(errorMessage);
     }
   };
 
