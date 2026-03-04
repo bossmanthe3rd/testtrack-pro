@@ -127,3 +127,19 @@ export const cloneTestCase = async (req: Request, res: Response) => {
     res.status(400).json({ message: error.message || "Error cloning test case" });
   }
 };
+// ... existing controllers ...
+
+export const deleteTestCase = async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const userId = (req as any).user.id; // From authMiddleware
+
+    await testCaseService.softDeleteTestCase(id, userId);
+
+    res.json({
+      message: "Test case deleted successfully"
+    });
+  } catch (error: any) {
+    res.status(400).json({ message: error.message || "Error deleting test case" });
+  }
+};

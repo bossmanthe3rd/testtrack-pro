@@ -1,0 +1,7 @@
+﻿src/modules/execution/execution.controller.ts(22,59): error TS2345: Argument of type 'string | string[]' is not assignable to parameter of type 'string'.
+  Type 'string[]' is not assignable to type 'string'.
+src/modules/execution/execution.controller.ts(32,69): error TS2345: Argument of type 'string | string[]' is not assignable to parameter of type 'string'.
+  Type 'string[]' is not assignable to type 'string'.
+src/modules/execution/execution.controller.ts(42,64): error TS2345: Argument of type 'string | string[]' is not assignable to parameter of type 'string'.
+  Type 'string[]' is not assignable to type 'string'.
+src/modules/execution/execution.routes.ts(6,10): error TS2305: Module '"../../middleware/role.middleware"' has no exported member 'roleMiddleware'.

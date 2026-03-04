@@ -56,3 +56,10 @@ export const cloneTestCase = async (id: string) => {
     
     return response.data;
 };
+
+// NEW: Soft delete a test case
+export const deleteTestCase = async (id: string) => {
+    // Axios uses .delete() for DELETE requests
+    const response = await api.delete(`/api/test-cases/${id}`);
+    return response.data;
+};

@@ -13,8 +13,6 @@ export const authMiddleware = (req: AuthRequest, res: Response, next: NextFuncti
   }
 
   const authHeader = req.headers.authorization;
-// CAMERA 5: Did the token actually arrive at the backend?
-  console.log("--> AUTH MIDDLEWARE HIT! Header received:", authHeader);
   // 2. Check if it exists and starts with "Bearer "
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ 
@@ -36,10 +34,6 @@ export const authMiddleware = (req: AuthRequest, res: Response, next: NextFuncti
     // 6. Let the user through!
     next();
   } catch (error: any) {
-    // CAMERA 4: Why did jwt.verify crash?!
-    console.error("JWT VERIFY FAILED:", error.message);
-    console.error("SECRET USED:", process.env.JWT_ACCESS_SECRET);
-
     return res.status(401).json({ 
       success: false, 
       message: 'Invalid or expired token.',

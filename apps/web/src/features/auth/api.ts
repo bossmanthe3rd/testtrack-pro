@@ -15,8 +15,8 @@ api.interceptors.request.use(
     const token = localStorage.getItem('accessToken'); 
     
     if (token) {
-      // FIX 2: Use the safe .set() method to attach the header
-      config.headers.set('Authorization', `Bearer ${token}`);
+      // FIX 2: Direct assignment is safer across Axios versions
+      config.headers.Authorization = `Bearer ${token}`;
     }
     
     return config;
@@ -51,7 +51,7 @@ api.interceptors.response.use(
         localStorage.setItem('accessToken', newAccessToken);
 
         // Update the failed request with the new token
-        originalRequest.headers.set('Authorization', `Bearer ${newAccessToken}`);
+        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
 
         // Try the original request again
         return api(originalRequest);

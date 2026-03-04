@@ -4,6 +4,8 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import * as testCaseApi from "../services/testCaseApi";
+// --- NEW: Import the Execution History Component ---
+import ExecutionHistory from "../components/ExecutionHistory";
 
 // 1. Define what the form data should look like (Matches your backend Zod schema!)
 const editFormSchema = z.object({
@@ -74,7 +76,8 @@ export default function EditTestCase() {
           type: data.type || "Functional",
           status: data.status,
           changeSummary: "", // Leave blank for the user to type
-          steps: data.steps.map((step: TestCaseDetail["steps"][0]) => ({
+          // NEW: We wrap data.steps || [] in parentheses so it never tries to map over undefined!
+          steps: (data.steps || []).map((step: TestCaseDetail["steps"][0]) => ({
             action: step.action,
             testData: step.testData || "",
             expectedResult: step.expectedResult,
@@ -107,11 +110,11 @@ export default function EditTestCase() {
   if (!testCaseInfo) return <div className="p-8 text-center text-red-500">Test case not found.</div>;
 
   return (
-    <div className="max-w-4xl mx-auto p-6 bg-white shadow rounded-lg mt-8">
+    <div className="max-w-4xl mx-auto p-6 bg-white shadow rounded-lg mt-8 mb-12">
       <h1 className="text-2xl font-bold text-gray-800 mb-2">Edit Test Case: {testCaseInfo.testCaseId}</h1>
       <p className="text-sm text-gray-500 mb-6">Current Version: v{testCaseInfo.version}</p>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={handleSubmit(onSubmit, (errs) => console.log('Form errors:', errs))} className="space-y-6">
         
         {/* === SECTION 1: CHANGE SUMMARY (Required for edits) === */}
         <div className="bg-blue-50 p-4 rounded-md border border-blue-200">
@@ -149,6 +152,24 @@ export default function EditTestCase() {
           </div>
 
           <div>
+            <label className="block text-sm font-medium text-gray-700">Severity</label>
+            <select {...register("severity")} className="w-full border border-gray-300 p-2 rounded mt-1">
+              <option value="BLOCKER">Blocker</option>
+              <option value="CRITICAL">Critical</option>
+              <option value="MAJOR">Major</option>
+              <option value="MINOR">Minor</option>
+              <option value="TRIVIAL">Trivial</option>
+            </select>
+            {errors.severity && <p className="text-red-500 text-xs">{errors.severity.message}</p>}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Type *</label>
+            <input {...register("type")} className="w-full border border-gray-300 p-2 rounded mt-1" placeholder="e.g., Functional, UI, Security" />
+            {errors.type && <p className="text-red-500 text-xs">{errors.type.message}</p>}
+          </div>
+
+          <div>
             <label className="block text-sm font-medium text-gray-700">Status</label>
             <select {...register("status")} className="w-full border border-gray-300 p-2 rounded mt-1">
               <option value="DRAFT">Draft</option>
@@ -158,7 +179,7 @@ export default function EditTestCase() {
             </select>
           </div>
         </div>
-
+        
         {/* === SECTION 3: STEPS === */}
         <div className="mt-8 border-t pt-6">
           <div className="flex justify-between items-center mb-4">
@@ -222,6 +243,11 @@ export default function EditTestCase() {
           </button>
         </div>
       </form>
+
+      {/* === NEW: SECTION 4: EXECUTION HISTORY === */}
+      {/* We only render this if the id exists from the URL */}
+      {id && <ExecutionHistory testCaseId={id} />}
+
     </div>
   );
 }

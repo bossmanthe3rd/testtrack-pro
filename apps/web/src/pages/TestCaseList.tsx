@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
-// NEW: Import useNavigate so we can redirect the user
 import { useNavigate } from 'react-router-dom';
-// NEW: Import cloneTestCase
-import { getTestCases, cloneTestCase, type GetTestCasesFilters } from '../services/testCaseApi';
 import type { TestCase, PaginationMeta } from '../types/testCase';
+import { getTestCases, cloneTestCase, deleteTestCase, type GetTestCasesFilters } from '../services/testCaseApi';
 
 export const TestCaseList = () => {
-  // NEW: Initialize the navigate hook
   const navigate = useNavigate();
 
   const [testCases, setTestCases] = useState<TestCase[]>([]);
   const [meta, setMeta] = useState<PaginationMeta | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  
+  // NEW: State to trigger a re-fetch when an item is deleted
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   
   // State for our search and filters
   const [filters, setFilters] = useState<GetTestCasesFilters>({
@@ -23,7 +23,7 @@ export const TestCaseList = () => {
     module: '',
   });
 
-  // Fetch data whenever filters change
+  // Fetch data whenever filters OR refreshTrigger change
   useEffect(() => {
     const fetchTestCases = async () => {
       setIsLoading(true);
@@ -44,7 +44,7 @@ export const TestCaseList = () => {
     }, 300);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [filters]);
+  }, [filters, refreshTrigger]); // NEW: Added refreshTrigger here!
 
   // Handler for filter changes
   const handleFilterChange = (key: keyof GetTestCasesFilters, value: string | number) => {
@@ -56,25 +56,37 @@ export const TestCaseList = () => {
     setFilters(prev => ({ ...prev, page: newPage }));
   };
 
-  // NEW: Handler for cloning a test case
+  // Handler for cloning a test case
   const handleClone = async (id: string) => {
-    // 1. Confirm with the user
     if (!window.confirm("Are you sure you want to clone this test case?")) return;
 
     try {
-      // 2. Call the backend API
       const response = await cloneTestCase(id);
-      
-      // 3. Grab the new ID from the backend response
       const newTestCaseId = response.data.id;
-      
       alert("Cloned successfully! Redirecting to edit page...");
-      
-      // 4. Redirect to the Edit page of the NEW test case
       navigate(`/test-cases/${newTestCaseId}/edit`);
     } catch (error) {
       console.error("Failed to clone:", error);
       alert("Failed to clone test case. Check console for details.");
+    }
+  };
+
+  // NEW: Handler for deleting a test case
+  const handleDelete = async (id: string) => {
+    // 1. ALWAYS ask for confirmation before deleting!
+    if (!window.confirm("Are you sure you want to delete this test case? This cannot be easily undone.")) {
+      return;
+    }
+
+    try {
+      // 2. Call the backend
+      await deleteTestCase(id);
+      
+      // 3. Trigger a refetch so the deleted item vanishes from the table
+      setRefreshTrigger(prev => prev + 1);
+    } catch (error) {
+      console.error("Failed to delete:", error);
+      alert("Failed to delete test case.");
     }
   };
 
@@ -84,7 +96,6 @@ export const TestCaseList = () => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-800">Test Cases</h1>
         <button 
-          // NEW: You can wire this up to navigate to your create page!
           onClick={() => navigate('/test-cases/create')}
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded shadow transition"
         >
@@ -136,7 +147,6 @@ export const TestCaseList = () => {
               <th className="py-4 px-6">Priority</th>
               <th className="py-4 px-6">Status</th>
               <th className="py-4 px-6">Author</th>
-              {/* NEW: Added an Actions column header */}
               <th className="py-4 px-6 text-right">Actions</th>
             </tr>
           </thead>
@@ -182,13 +192,28 @@ export const TestCaseList = () => {
                   </td>
                   <td className="py-4 px-6 text-gray-500">{tc.createdBy?.name || "Unknown"}</td>
                   
-                  {/* NEW: Added the Actions cell with the Clone button */}
-                  <td className="py-4 px-6 text-right">
+                  {/* NEW: Updated Actions cell with Flexbox so buttons sit side-by-side */}
+                  <td className="py-4 px-6 text-right flex gap-2 justify-end">
+                    
+                    {/* --- THE NEW EDIT/EXECUTE BUTTON --- */}
+                    <button 
+                      onClick={() => navigate(`/test-cases/${tc.id}/edit`)}
+                      className="bg-indigo-50 text-indigo-600 hover:bg-indigo-500 hover:text-white border border-indigo-200 px-3 py-1 rounded shadow-sm transition duration-150 text-xs font-semibold"
+                    >
+                      Edit / Execute
+                    </button>
+
                     <button 
                       onClick={() => handleClone(tc.id)}
                       className="bg-green-50 text-green-600 hover:bg-green-500 hover:text-white border border-green-200 px-3 py-1 rounded shadow-sm transition duration-150 text-xs font-semibold"
                     >
                       Clone
+                    </button>
+                    <button 
+                      onClick={() => handleDelete(tc.id)}
+                      className="bg-red-50 text-red-600 hover:bg-red-500 hover:text-white border border-red-200 px-3 py-1 rounded shadow-sm transition duration-150 text-xs font-semibold"
+                    >
+                      Delete
                     </button>
                   </td>
                 </tr>
