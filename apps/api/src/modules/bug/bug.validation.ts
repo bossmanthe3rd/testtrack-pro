@@ -17,3 +17,17 @@ export const createBugSchema = z.object({
     attachments: z.array(z.string()).optional(),
   }),
 });
+
+export const updateBugStatusSchema = z.object({
+  status: z.enum([
+    'NEW', 'OPEN', 'DUPLICATE', 'WONT_FIX', 
+    'IN_PROGRESS', 'FIXED', 'VERIFIED', 'CLOSED', 'REOPENED'
+  ]),
+  fixNotes: z.string().optional(),
+  commitHash: z.string().optional(),
+});
+
+export const requestRetestSchema = z.object({
+  fixNotes: z.string().min(1, "Fix notes are required for a retest request"),
+  commitHash: z.string().optional(),
+});

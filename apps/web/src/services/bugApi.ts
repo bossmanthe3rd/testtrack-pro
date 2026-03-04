@@ -39,12 +39,15 @@ export const createBug = async (bugData: CreateBugPayload) => {
   return response.data;
 };
 
-// 4. Bug Listing Types (These were missing and causing your errors!)
+// 4. User References
 export interface UserRef {
   id: string;
   name: string;
 }
 
+// 5. Updated Bug Interface
+// We expanded this to include the detailed fields needed for Day 10.
+// The '?' makes them optional so your existing listing code doesn't break.
 export interface Bug {
   id: string;
   bugId: string;
@@ -53,8 +56,21 @@ export interface Bug {
   priority: string;
   status: string;
   createdAt: string;
+  updatedAt?: string;
   assignedTo?: UserRef | null;
+  assignedToId?: string;
   reportedBy: UserRef;
+  
+  // Detailed fields (Optional for lists, required for details)
+  description?: string;
+  stepsToReproduce?: string;
+  expectedBehavior?: string;
+  actualBehavior?: string;
+  environment?: string;
+  affectedVersion?: string;
+  linkedTestCaseId?: string;
+  fixNotes?: string;
+  commitHash?: string;
 }
 
 export interface BugListResponse {
@@ -67,7 +83,7 @@ export interface BugListResponse {
   };
 }
 
-// 5. Get Bugs Function
+// 6. Get Bugs Function (For the general Bug List)
 export const getBugs = async (filters?: Record<string, string | number>) => {
   const params = new URLSearchParams();
   if (filters) {
@@ -77,7 +93,44 @@ export const getBugs = async (filters?: Record<string, string | number>) => {
   }
 
   const response = await api.get(`${API_URL}/bugs?${params.toString()}`);
-  
-  // FIX: We add .data here to bypass the backend's { success: true, data: ... } wrapper
   return response.data.data as BugListResponse; 
+};
+
+// ==========================================
+// NEW DAY 10 CODE: DEVELOPER WORKFLOW
+// ==========================================
+
+// 7. Update Bug Status Payload Type
+export interface UpdateBugStatusPayload {
+  status: string; // "NEW" | "OPEN" | "IN_PROGRESS" | "FIXED" etc.
+  fixNotes?: string;
+  commitHash?: string;
+}
+
+// 8. Get Bugs Assigned to Logged-in Developer
+export const getMyBugs = async (filters?: { status?: string; priority?: string }) => {
+  const params = new URLSearchParams();
+  if (filters?.status) params.append('status', filters.status);
+  if (filters?.priority) params.append('priority', filters.priority);
+
+  const response = await api.get(`${API_URL}/bugs/my?${params.toString()}`);
+  return response.data.data as Bug[];
+};
+
+// 9. Get Single Bug Details
+export const getBugById = async (id: string) => {
+  const response = await api.get(`${API_URL}/bugs/${id}`);
+  return response.data.data as Bug;
+};
+
+// 10. Update Bug Status (State Machine transition)
+export const updateBugStatus = async (id: string, payload: UpdateBugStatusPayload) => {
+  const response = await api.patch(`${API_URL}/bugs/${id}/status`, payload);
+  return response.data.data as Bug;
+};
+
+// 11. Request Retest (Developer to QA)
+export const requestRetest = async (id: string, fixNotes: string, commitHash?: string) => {
+  const response = await api.post(`${API_URL}/bugs/${id}/request-retest`, { fixNotes, commitHash });
+  return response.data.data as Bug;
 };

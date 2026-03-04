@@ -228,6 +228,8 @@ model Bug {
   linkedTestCaseId String?
   projectId        String?
   executionStepId  String?
+  fixNotes         String?   @db.Text
+  commitHash       String?
   
   attachments      String[]
   

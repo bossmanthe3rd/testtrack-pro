@@ -1,5 +1,5 @@
 import {prisma} from "../../config/prisma";
-import { Prisma } from "@prisma/client";
+import { Prisma, BugStatus } from "@prisma/client";
 
 export const createBug = async (data: any, reportedById: string) => {
   // 1. Generate the custom Bug ID (Format: BUG-YYYY-XXXXX)
@@ -87,4 +87,93 @@ export const getBugs = async (filters: any) => {
       limit,
     },
   };
+};
+export const getBugById = async (id: string) => {
+  return await prisma.bug.findUnique({
+    where: { id },
+    include: {
+      reportedBy: { select: { name: true, id: true } },
+      assignedTo: { select: { name: true, id: true } },
+      linkedTestCase: true, // This allows the frontend to show the related test case info
+    }
+  });
+};
+
+// The State Machine Rules
+const ALLOWED_TRANSITIONS: Record<string, string[]> = {
+  NEW: ['OPEN', 'DUPLICATE', 'WONT_FIX'],
+  OPEN: ['IN_PROGRESS'],
+  IN_PROGRESS: ['FIXED'],
+  FIXED: ['VERIFIED', 'REOPENED'],
+  VERIFIED: ['CLOSED'],
+  REOPENED: ['IN_PROGRESS'],
+};
+
+export const updateBugStatus = async (
+  bugId: string, 
+  developerId: string, 
+  newStatus: BugStatus, 
+  fixNotes?: string, 
+  commitHash?: string
+) => {
+  // 1. Fetch the existing bug
+  const bug = await prisma.bug.findUnique({ where: { id: bugId } });
+  
+  if (!bug) throw new Error("Bug not found");
+  
+  // 2. Ensure only the assigned developer can modify it
+  if (bug.assignedToId !== developerId) {
+    throw new Error("Unauthorized: You can only update bugs assigned to you");
+  }
+
+  // 3. State Machine Validation
+  const currentStatus = bug.status;
+  const allowedNextStates = ALLOWED_TRANSITIONS[currentStatus] || [];
+  
+  if (!allowedNextStates.includes(newStatus)) {
+    throw new Error(`Invalid transition: Cannot move bug from ${currentStatus} to ${newStatus}`);
+  }
+
+  // 4. Update the database
+  return await prisma.bug.update({
+    where: { id: bugId },
+    data: {
+      status: newStatus,
+      fixNotes: fixNotes || bug.fixNotes,
+      commitHash: commitHash || bug.commitHash,
+    }
+  });
+};
+
+export const getBugsAssignedToMe = async (developerId: string, filters: any) => {
+  const { status, priority } = filters;
+  
+  const whereClause: any = {
+    assignedToId: developerId,
+  };
+
+  if (status) whereClause.status = status;
+  if (priority) whereClause.priority = priority;
+
+  return await prisma.bug.findMany({
+    where: whereClause,
+    orderBy: { createdAt: 'desc' },
+    include: {
+      linkedTestCase: {
+        select: { testCaseId: true }
+      }
+    }
+  });
+};
+
+export const requestRetest = async (bugId: string, developerId: string, fixNotes: string, commitHash?: string) => {
+  // A re-test request is simply a strict transition to FIXED with mandatory notes
+  return await updateBugStatus(bugId, developerId, 'FIXED', fixNotes, commitHash);
+};
+
+export const getDevelopersList = async () => {
+  return await prisma.user.findMany({
+    where: { role: 'DEVELOPER' },
+    select: { id: true, name: true },
+  });
 };
