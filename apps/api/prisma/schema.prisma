@@ -226,7 +226,10 @@ model Bug {
   assignedToId     String?
   reportedById     String
   linkedTestCaseId String?
-  projectId        String
+  projectId        String?
+  executionStepId  String?
+  
+  attachments      String[]
   
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
@@ -234,7 +237,7 @@ model Bug {
   assignedTo       User?     @relation("BugAssignee", fields: [assignedToId], references: [id])
   reportedBy       User      @relation("BugReporter", fields: [reportedById], references: [id])
   linkedTestCase   TestCase? @relation(fields: [linkedTestCaseId], references: [id])
-  project          Project   @relation(fields: [projectId], references: [id])
+  project          Project?  @relation(fields: [projectId], references: [id])
   comments         Comment[] @relation("BugComments")
 }
 

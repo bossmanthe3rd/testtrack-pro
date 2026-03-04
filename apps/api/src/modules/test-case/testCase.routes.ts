@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { handleCreateTestCase, getTestCases, updateTestCase, cloneTestCase } from './testCase.controller';
+import { handleCreateTestCase, getTestCases, getTestCase, updateTestCase, cloneTestCase, deleteTestCase } from './testCase.controller';
 import { authMiddleware } from '../../middleware/auth.middleware';
 import { authorize } from '../../middleware/role.middleware';
 
@@ -16,7 +16,7 @@ router.get(
     authorize('TESTER', 'DEVELOPER'),
     getTestCases
 );
-router.get("/:id", authMiddleware, getTestCases);
+router.get("/:id", authMiddleware, getTestCase);
 
 // Update a test case (Only TESTER can edit)
 router.put(
@@ -31,4 +31,14 @@ router.post(
   authorize("TESTER"), 
   cloneTestCase
 );
+// ... existing routes ...
+
+// Soft Delete a test case (Only TESTER can delete)
+router.delete(
+  "/:id", 
+  authMiddleware, 
+  authorize("TESTER"), 
+  deleteTestCase
+);
+
 export default router;

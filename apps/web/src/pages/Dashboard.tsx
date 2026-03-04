@@ -1,13 +1,30 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 // Adjust this import path if your auth store is located elsewhere!
 import { useAuthStore } from '../features/auth/authStore';
+import { getBugs } from '../services/bugApi';
 
 export const Dashboard = () => {
   // Grab the user details and logout function from your Zustand store
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
   const navigate = useNavigate();
+
+  // State to hold the dynamic bug count
+  const [bugCount, setBugCount] = useState<number | string>('--');
+
+  // Fetch the actual bug count when the dashboard loads
+  useEffect(() => {
+    const fetchBugStats = async () => {
+      try {
+        const response = await getBugs({ limit: 1 });
+        setBugCount(response.pagination.totalCount);
+      } catch (error) {
+        console.error("Failed to fetch dashboard stats", error);
+      }
+    };
+    fetchBugStats();
+  }, []);
 
   const handleLogout = async () => {
     await logout(); // Call your backend logout
@@ -38,7 +55,20 @@ export const Dashboard = () => {
           >
             Test Cases
           </Link>
-          {/* We will add Bug Reports and Test Runs here later! */}
+          <Link
+            to="/test-suites"
+            className="block px-4 py-3 rounded-lg text-gray-700 hover:bg-purple-50 hover:text-purple-700 font-medium transition-colors"
+          >
+            Test Suites
+          </Link>
+          
+          {/* NEW: Added the Bug Tracker Link to the sidebar! */}
+          <Link
+            to="/bugs"
+            className="block px-4 py-3 rounded-lg text-gray-700 hover:bg-red-50 hover:text-red-700 font-medium transition-colors"
+          >
+            Bug Tracker
+          </Link>
         </nav>
 
         {/* User Info & Logout */}
@@ -69,10 +99,16 @@ export const Dashboard = () => {
             <h3 className="text-gray-500 text-sm font-medium mb-1">Total Tests</h3>
             <p className="text-3xl font-bold text-gray-800">--</p>
           </div>
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-            <h3 className="text-gray-500 text-sm font-medium mb-1">Open Bugs</h3>
-            <p className="text-3xl font-bold text-red-600">--</p>
+          
+          {/* UPDATED: Dynamic Bug Count Widget */}
+          <div 
+            onClick={() => navigate('/bugs')}
+            className="bg-white p-6 rounded-xl shadow-sm border-t-4 border-t-red-500 border border-gray-100 cursor-pointer hover:shadow-md transition"
+          >
+            <h3 className="text-gray-500 text-sm font-medium mb-1">Total Bugs</h3>
+            <p className="text-3xl font-bold text-red-600">{bugCount}</p>
           </div>
+          
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
             <h3 className="text-gray-500 text-sm font-medium mb-1">Pass Rate</h3>
             <p className="text-3xl font-bold text-green-600">--%</p>
@@ -80,10 +116,33 @@ export const Dashboard = () => {
         </div>
 
         <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100 text-center">
-          <p className="text-gray-600 text-lg">
+          <p className="text-gray-600 text-lg mb-6">
             Your dashboard is looking a little empty right now. <br />
-            Head over to the <Link to="/test-cases" className="text-blue-600 hover:underline font-medium">Test Cases</Link> tab to see your new table!
+            Head over to the Test Cases or Test Suites tab to get started!
           </p>
+          
+          {/* Quick action buttons */}
+          <div className="flex flex-wrap justify-center gap-4">
+            <button 
+              onClick={() => navigate('/test-cases')}
+              className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition shadow-sm"
+            >
+              Go to Test Cases
+            </button>
+            <button 
+              onClick={() => navigate('/test-suites')}
+              className="bg-purple-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-purple-700 transition shadow-sm"
+            >
+              Manage Test Suites
+            </button>
+            {/* NEW: Quick action button for Bugs */}
+            <button 
+              onClick={() => navigate('/bugs')}
+              className="bg-red-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-red-700 transition shadow-sm"
+            >
+              View Bug Tracker
+            </button>
+          </div>
         </div>
       </div>
 

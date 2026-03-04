@@ -1,0 +1,1 @@
+﻿src/modules/bug/bug.service.ts(48,29): error TS2694: Namespace '"C:/Users/Himank Sharma/testtrack/apps/api/src/generated/prisma/internal/prismaNamespace"' has no exported member 'BugWhereInput'.

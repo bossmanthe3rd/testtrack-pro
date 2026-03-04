@@ -255,3 +255,26 @@ export const cloneTestCase = async (originalId: string, userId: string) => {
 
     return clonedCase;
   }
+  // ... existing methods (create, getById, update, clone) ...
+
+export const softDeleteTestCase = async (id: string, userId: string) => {
+    // 1. Check if it actually exists and isn't already deleted
+    const existingCase = await prisma.testCase.findUnique({
+      where: { id, deletedAt: null }
+    });
+
+    if (!existingCase) {
+      throw new Error("Test case not found or already deleted");
+    }
+
+    // 2. Perform the Soft Delete (It's actually an UPDATE operation!)
+    const deletedCase = await prisma.testCase.update({
+      where: { id },
+      data: {
+        deletedAt: new Date(), // This hides it from the UI
+        updatedAt: new Date(),
+      }
+    });
+
+    return deletedCase;
+  }

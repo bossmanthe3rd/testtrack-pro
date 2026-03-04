@@ -1,0 +1,6 @@
+﻿src/controllers/upload.controller.ts(3,25): error TS7016: Could not find a declaration file for module 'streamifier'. 'C:/Users/Himank Sharma/testtrack/node_modules/.pnpm/streamifier@0.1.1/node_modules/streamifier/lib/index.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/streamifier` if it exists or add a new declaration (.d.ts) file containing `declare module 'streamifier';`
+src/controllers/upload.controller.ts(8,14): error TS2339: Property 'file' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+src/controllers/upload.controller.ts(33,38): error TS2339: Property 'file' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+src/routes/upload.routes.ts(2,20): error TS7016: Could not find a declaration file for module 'multer'. 'C:/Users/Himank Sharma/testtrack/node_modules/.pnpm/multer@2.1.0/node_modules/multer/index.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/multer` if it exists or add a new declaration (.d.ts) file containing `declare module 'multer';`
