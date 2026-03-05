@@ -4,9 +4,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../features/auth/api';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { PlusCircle, Trash2 } from 'lucide-react';
 
-// 1. Zod Validation Schema
-// This acts as our "frontend bouncer" to ensure all required fields are filled before sending to the backend.
+// ── Zod Schema (UNCHANGED) ─────────────────────────────────────────────────────
 const testStepSchema = z.object({
     action: z.string().min(1, "Action is required"),
     testData: z.string().optional(),
@@ -29,13 +30,19 @@ const createTestCaseSchema = z.object({
     steps: z.array(testStepSchema).min(1, "At least one step is required"),
 });
 
-// Extract the TypeScript type from the Zod schema
 type FormData = z.infer<typeof createTestCaseSchema>;
 
+// ── Shared style tokens ────────────────────────────────────────────────────────
+const inputCls = "w-full bg-slate-950 border border-slate-700 text-slate-200 placeholder:text-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent";
+const selectCls = "w-full bg-slate-950 border border-slate-700 text-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent";
+const labelCls = "block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5";
+const errorCls = "text-red-400 text-xs mt-1";
+
+// ── Component ──────────────────────────────────────────────────────────────────
 export default function CreateTestCase() {
     const navigate = useNavigate();
 
-    // 2. Initialize React Hook Form
+    // ── useForm (UNCHANGED) ────────────────────────────────────────────────────
     const {
         register,
         control,
@@ -53,250 +60,222 @@ export default function CreateTestCase() {
         },
     });
 
-    // 3. Initialize dynamic field array for the Test Steps
+    // ── useFieldArray (UNCHANGED) ──────────────────────────────────────────────
     const { fields, append, remove } = useFieldArray({
         control,
         name: 'steps',
     });
-    // 4. Submit Handler (UPDATED)
+
+    // ── Submit Handler (UNCHANGED) ─────────────────────────────────────────────
     const onSubmit = async (data: FormData) => {
         try {
-            // Create a new payload that includes the project ID
             const payload = {
                 ...data,
-                // REPLACE THIS STRING WITH the ID you copied from Prisma Studio!
                 projectId: "4bb5bff1-8d0d-44b5-a519-2251b3c17c21",
             };
-
-            // Send the payload to the backend API
             await api.post('/api/test-cases', payload);
             alert('Test Case created successfully!');
             navigate('/dashboard');
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Failed to create test case:', error);
-            alert(error.response?.data?.error || 'Failed to create test case. Please try again.');
+            const e = error as { response?: { data?: { error?: string } } };
+            alert(e.response?.data?.error || 'Failed to create test case. Please try again.');
         }
     };
 
-    // 5. Render the UI
     return (
-        <div className="max-w-4xl mx-auto p-6 bg-white shadow-md rounded-lg mt-8">
-            <h1 className="text-3xl font-bold mb-8 text-gray-800">Create New Test Case</h1>
+        <div className="max-w-4xl mx-auto">
 
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-                {/* SECTION 1: Basic Info */}
-                <div className="bg-gray-50 p-6 rounded-md border border-gray-200">
-                    <h2 className="text-xl font-semibold mb-4 text-gray-700">Basic Information</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* ── Page Header ── */}
+            <div className="mb-8">
+                <p className="text-sm font-medium text-indigo-400 uppercase tracking-widest mb-1">Test Cases</p>
+                <h1 className="text-4xl font-bold text-white">Create New Test Case</h1>
+            </div>
+
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+
+                {/* ── CARD 1: Basic Information ── */}
+                <Card className="bg-slate-900/60 border-slate-800">
+                    <CardHeader>
+                        <CardTitle className="text-base font-semibold text-slate-200">Basic Information</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-5">
                         <div className="col-span-2">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
-                            <input
-                                {...register('title')}
-                                className="w-full border border-gray-300 rounded p-2 focus:ring-blue-500 focus:border-blue-500"
-                                placeholder="e.g., Verify user login with valid credentials"
-                            />
-                            {errors.title && <p className="text-red-500 text-sm mt-1">{errors.title.message}</p>}
-                        </div>
-
-                        <div className="col-span-2">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Description *</label>
-                            <textarea
-                                {...register('description')}
-                                rows={3}
-                                className="w-full border border-gray-300 rounded p-2 focus:ring-blue-500 focus:border-blue-500"
-                                placeholder="Detailed description of what is being tested"
-                            />
-                            {errors.description && <p className="text-red-500 text-sm mt-1">{errors.description.message}</p>}
+                            <label className={labelCls}>Title *</label>
+                            <input {...register('title')} className={inputCls} placeholder="e.g., Verify user login with valid credentials" />
+                            {errors.title && <p className={errorCls}>{errors.title.message}</p>}
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Module *</label>
-                            <input
-                                {...register('module')}
-                                className="w-full border border-gray-300 rounded p-2 focus:ring-blue-500 focus:border-blue-500"
-                                placeholder="e.g., Authentication"
-                            />
-                            {errors.module && <p className="text-red-500 text-sm mt-1">{errors.module.message}</p>}
+                            <label className={labelCls}>Description *</label>
+                            <textarea {...register('description')} rows={3} className={inputCls + ' resize-none'} placeholder="Detailed description of what is being tested" />
+                            {errors.description && <p className={errorCls}>{errors.description.message}</p>}
                         </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Project ID *</label>
-                            <input
-                                {...register('projectId')}
-                                className="w-full border border-gray-300 rounded p-2 focus:ring-blue-500 focus:border-blue-500"
-                                placeholder="e.g., 123e4567-e89b-12d3-a456-426614174000"
-                            />
-                            {errors.projectId && <p className="text-red-500 text-sm mt-1">{errors.projectId.message}</p>}
-                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div>
+                                <label className={labelCls}>Module *</label>
+                                <input {...register('module')} className={inputCls} placeholder="e.g., Authentication" />
+                                {errors.module && <p className={errorCls}>{errors.module.message}</p>}
+                            </div>
+                            <div>
+                                <label className={labelCls}>Project ID *</label>
+                                <input {...register('projectId')} className={inputCls} placeholder="e.g., 123e4567-e89b-12d3-a456-426614174000" />
+                                {errors.projectId && <p className={errorCls}>{errors.projectId.message}</p>}
+                            </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                            <select {...register('status')} className="w-full border border-gray-300 rounded p-2 bg-white">
-                                <option value="DRAFT">Draft</option>
-                                <option value="READY_FOR_REVIEW">Ready for Review</option>
-                                <option value="APPROVED">Approved</option>
-                                <option value="DEPRECATED">Deprecated</option>
-                                <option value="ARCHIVED">Archived</option>
-                            </select>
-                        </div>
+                            <div>
+                                <label className={labelCls}>Status</label>
+                                <select {...register('status')} className={selectCls}>
+                                    <option value="DRAFT">Draft</option>
+                                    <option value="READY_FOR_REVIEW">Ready for Review</option>
+                                    <option value="APPROVED">Approved</option>
+                                    <option value="DEPRECATED">Deprecated</option>
+                                    <option value="ARCHIVED">Archived</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className={labelCls}>Type</label>
+                                <select {...register('type')} className={selectCls}>
+                                    <option value="FUNCTIONAL">Functional</option>
+                                    <option value="REGRESSION">Regression</option>
+                                    <option value="SMOKE">Smoke</option>
+                                    <option value="INTEGRATION">Integration</option>
+                                    <option value="UAT">UAT</option>
+                                    <option value="PERFORMANCE">Performance</option>
+                                    <option value="SECURITY">Security</option>
+                                    <option value="USABILITY">Usability</option>
+                                </select>
+                            </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                            <select {...register('type')} className="w-full border border-gray-300 rounded p-2 bg-white">
-                                <option value="FUNCTIONAL">Functional</option>
-                                <option value="REGRESSION">Regression</option>
-                                <option value="SMOKE">Smoke</option>
-                                <option value="INTEGRATION">Integration</option>
-                                <option value="UAT">UAT</option>
-                                <option value="PERFORMANCE">Performance</option>
-                                <option value="SECURITY">Security</option>
-                                <option value="USABILITY">Usability</option>
-                            </select>
+                            <div>
+                                <label className={labelCls}>Priority</label>
+                                <select {...register('priority')} className={selectCls}>
+                                    <option value="P1">P1 — Urgent</option>
+                                    <option value="P2">P2 — High</option>
+                                    <option value="P3">P3 — Medium</option>
+                                    <option value="P4">P4 — Low</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className={labelCls}>Severity</label>
+                                <select {...register('severity')} className={selectCls}>
+                                    <option value="BLOCKER">Blocker</option>
+                                    <option value="CRITICAL">Critical</option>
+                                    <option value="MAJOR">Major</option>
+                                    <option value="MINOR">Minor</option>
+                                    <option value="TRIVIAL">Trivial</option>
+                                </select>
+                            </div>
                         </div>
+                    </CardContent>
+                </Card>
 
+                {/* ── CARD 2: Requirements & Conditions ── */}
+                <Card className="bg-slate-900/60 border-slate-800">
+                    <CardHeader>
+                        <CardTitle className="text-base font-semibold text-slate-200">Requirements &amp; Conditions</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-5">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
-                            <select {...register('priority')} className="w-full border border-gray-300 rounded p-2 bg-white">
-                                <option value="P1">P1 - Urgent</option>
-                                <option value="P2">P2 - High</option>
-                                <option value="P3">P3 - Medium</option>
-                                <option value="P4">P4 - Low</option>
-                            </select>
+                            <label className={labelCls}>Pre-conditions</label>
+                            <textarea {...register('preConditions')} rows={2} className={inputCls + ' resize-none'} placeholder="Conditions that must be true before execution" />
                         </div>
+                        <div>
+                            <label className={labelCls}>Test Data Requirements</label>
+                            <textarea {...register('testDataRequirements')} rows={2} className={inputCls + ' resize-none'} placeholder="Specific data needed for this test" />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div>
+                                <label className={labelCls}>Environment Requirements</label>
+                                <input {...register('environmentRequirements')} className={inputCls} placeholder="e.g., Browser: Chrome 120+, OS: Windows 11" />
+                            </div>
+                            <div>
+                                <label className={labelCls}>Estimated Duration</label>
+                                <input {...register('estimatedDuration')} className={inputCls} placeholder="e.g., 5 minutes" />
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
 
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Severity</label>
-                            <select {...register('severity')} className="w-full border border-gray-300 rounded p-2 bg-white">
-                                <option value="BLOCKER">Blocker</option>
-                                <option value="CRITICAL">Critical</option>
-                                <option value="MAJOR">Major</option>
-                                <option value="MINOR">Minor</option>
-                                <option value="TRIVIAL">Trivial</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                {/* SECTION 2: Requirements */}
-                <div className="bg-gray-50 p-6 rounded-md border border-gray-200">
-                    <h2 className="text-xl font-semibold mb-4 text-gray-700">Requirements & Conditions</h2>
-                    <div className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Pre-conditions</label>
-                            <textarea
-                                {...register('preConditions')}
-                                rows={2}
-                                className="w-full border border-gray-300 rounded p-2"
-                                placeholder="Conditions that must be true before execution"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Test Data Requirements</label>
-                            <textarea
-                                {...register('testDataRequirements')}
-                                rows={2}
-                                className="w-full border border-gray-300 rounded p-2"
-                                placeholder="Specific data needed for this test"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Environment Requirements</label>
-                            <input
-                                {...register('environmentRequirements')}
-                                className="w-full border border-gray-300 rounded p-2"
-                                placeholder="e.g., Browser: Chrome 120+, OS: Windows 11"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Estimated Duration</label>
-                            <input
-                                {...register('estimatedDuration')}
-                                className="w-full border border-gray-300 rounded p-2"
-                                placeholder="e.g., 5 minutes"
-                            />
-                        </div>
-                    </div>
-                </div>
-
-                {/* SECTION 3: Dynamic Test Steps */}
-                <div className="bg-gray-50 p-6 rounded-md border border-gray-200">
-                    <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-xl font-semibold text-gray-700">Test Steps *</h2>
+                {/* ── CARD 3: Test Steps ── */}
+                <Card className="bg-slate-900/60 border-slate-800">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                        <CardTitle className="text-base font-semibold text-slate-200">Test Steps *</CardTitle>
                         <button
                             type="button"
                             onClick={() => append({ action: '', testData: '', expectedResult: '' })}
-                            className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm transition-colors"
+                            className="flex items-center gap-1.5 bg-green-500/10 hover:bg-green-500/20 text-green-300 border border-green-500/30 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
                         >
-                            + Add Step
+                            <PlusCircle className="h-3.5 w-3.5" /> Add Step
                         </button>
-                    </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {errors.steps?.root && <p className={errorCls}>{errors.steps.root.message}</p>}
 
-                    {errors.steps?.root && <p className="text-red-500 text-sm mb-4">{errors.steps.root.message}</p>}
-
-                    <div className="space-y-4">
                         {fields.map((field, index) => (
-                            <div key={field.id} className="bg-white p-4 border border-gray-300 rounded shadow-sm relative">
-                                <div className="absolute top-2 right-2">
+                            <div key={field.id} className="bg-slate-900 border border-slate-700/60 rounded-xl p-4 relative">
+                                <div className="flex items-center justify-between mb-4">
+                                    <span className="text-xs font-bold text-indigo-400 uppercase tracking-widest">Step {index + 1}</span>
                                     {fields.length > 1 && (
                                         <button
                                             type="button"
                                             onClick={() => remove(index)}
-                                            className="text-red-500 hover:text-red-700 text-sm font-medium"
+                                            className="flex items-center gap-1 text-red-400 hover:text-red-300 text-xs font-medium transition-colors"
                                         >
-                                            ✕ Remove
+                                            <Trash2 className="h-3.5 w-3.5" /> Remove
                                         </button>
                                     )}
                                 </div>
-
-                                <h3 className="font-bold text-gray-700 mb-3">Step {index + 1}</h3>
-
-                                <div className="space-y-3">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div>
+                                        <label className={labelCls}>Action *</label>
                                         <input
                                             {...register(`steps.${index}.action` as const)}
-                                            placeholder="Action (e.g., Navigate to login page)"
-                                            className="w-full border border-gray-300 rounded p-2"
+                                            placeholder="Navigate to login page"
+                                            className={inputCls}
                                         />
                                         {errors.steps?.[index]?.action && (
-                                            <p className="text-red-500 text-xs mt-1">{errors.steps[index]?.action?.message}</p>
+                                            <p className={errorCls}>{errors.steps[index]?.action?.message}</p>
                                         )}
                                     </div>
-
                                     <div>
+                                        <label className={labelCls}>Test Data</label>
                                         <input
                                             {...register(`steps.${index}.testData` as const)}
-                                            placeholder="Test Data (e.g., Email: test@example.com)"
-                                            className="w-full border border-gray-300 rounded p-2"
+                                            placeholder="Email: test@example.com"
+                                            className={inputCls}
                                         />
                                     </div>
-
                                     <div>
+                                        <label className={labelCls}>Expected Result *</label>
                                         <input
                                             {...register(`steps.${index}.expectedResult` as const)}
-                                            placeholder="Expected Result (e.g., Login page loads)"
-                                            className="w-full border border-gray-300 rounded p-2"
+                                            placeholder="Login page loads"
+                                            className={inputCls}
                                         />
                                         {errors.steps?.[index]?.expectedResult && (
-                                            <p className="text-red-500 text-xs mt-1">{errors.steps[index]?.expectedResult?.message}</p>
+                                            <p className={errorCls}>{errors.steps[index]?.expectedResult?.message}</p>
                                         )}
                                     </div>
                                 </div>
                             </div>
                         ))}
-                    </div>
-                </div>
+                    </CardContent>
+                </Card>
 
-                {/* Submit Button */}
-                <div className="pt-4">
-                    <button
-                        type="submit"
-                        disabled={isSubmitting}
-                        className={`w-full py-3 rounded-md text-white font-bold text-lg transition-colors ${isSubmitting ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
-                            }`}
-                    >
-                        {isSubmitting ? 'Saving Test Case...' : 'Create Test Case'}
-                    </button>
-                </div>
+                {/* ── Submit ── */}
+                <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className={`w-full py-3 rounded-xl text-white font-bold text-sm transition-all shadow-lg ${
+                        isSubmitting
+                            ? 'bg-indigo-800 cursor-not-allowed opacity-70'
+                            : 'bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 shadow-indigo-900/30'
+                    }`}
+                >
+                    {isSubmitting ? 'Saving Test Case...' : 'Create Test Case'}
+                </button>
             </form>
         </div>
     );

@@ -71,6 +71,7 @@ export interface Bug {
   linkedTestCaseId?: string;
   fixNotes?: string;
   commitHash?: string;
+  attachments?: string[];
 }
 
 export interface BugListResponse {

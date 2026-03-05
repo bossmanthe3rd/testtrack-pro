@@ -6,6 +6,45 @@ import { authMiddleware } from "../middleware/auth.middleware";
 
 const router = Router();
 
+/**
+ * @swagger
+ * /auth/login:
+ * post:
+ * summary: Log in a user
+ * tags: [Authentication]
+ * requestBody:
+ * required: true
+ * content:
+ * application/json:
+ * schema:
+ * type: object
+ * required:
+ * - email
+ * - password
+ * properties:
+ * email:
+ * type: string
+ * format: email
+ * example: john.tester@company.com
+ * password:
+ * type: string
+ * format: password
+ * example: SecurePass@123
+ * responses:
+ * 200:
+ * description: Successfully logged in
+ * content:
+ * application/json:
+ * schema:
+ * type: object
+ * properties:
+ * accessToken:
+ * type: string
+ * refreshToken:
+ * type: string
+ * 401:
+ * description: Invalid credentials
+ */
 // 1. Define all the public routes
 router.post("/register", register);
 router.post("/login", login);

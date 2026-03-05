@@ -4,10 +4,11 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import * as testCaseApi from "../services/testCaseApi";
-// --- NEW: Import the Execution History Component ---
 import ExecutionHistory from "../components/ExecutionHistory";
+import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { PlusCircle, Trash2 } from "lucide-react";
 
-// 1. Define what the form data should look like (Matches your backend Zod schema!)
+// ── Zod Schema (UNCHANGED) ─────────────────────────────────────────────────────
 const editFormSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
   description: z.string().optional(),
@@ -41,32 +42,37 @@ interface TestCaseDetail {
   steps: Array<{ action: string; testData?: string; expectedResult: string; }>;
 }
 
+// ── Shared style tokens ────────────────────────────────────────────────────────
+const inputCls = "w-full bg-slate-950 border border-slate-700 text-slate-200 placeholder:text-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent";
+const selectCls = "w-full bg-slate-950 border border-slate-700 text-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent";
+const labelCls = "block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5";
+const errorCls = "text-red-400 text-xs mt-1";
+
+// ── Component ──────────────────────────────────────────────────────────────────
 export default function EditTestCase() {
-  const { id } = useParams(); // Get the ID from the URL
+  const { id } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [testCaseInfo, setTestCaseInfo] = useState<TestCaseDetail | null>(null);
 
-  // 2. Setup React Hook Form
+  // ── useForm (UNCHANGED) ────────────────────────────────────────────────────
   const { register, control, handleSubmit, reset, formState: { errors } } = useForm<EditFormValues>({
     resolver: zodResolver(editFormSchema),
   });
 
-  // Setup dynamic steps
+  // ── useFieldArray (UNCHANGED) ──────────────────────────────────────────────
   const { fields, append, remove } = useFieldArray({
     control,
     name: "steps",
   });
 
-  // 3. Fetch data when the page loads
+  // ── Data Fetch (UNCHANGED) ─────────────────────────────────────────────────
   useEffect(() => {
     const fetchTestCase = async () => {
       try {
         if (!id) return;
         const data = await testCaseApi.getTestCaseById(id);
         setTestCaseInfo(data);
-        
-        // This is the magic! It pre-fills the form with the database data
         reset({
           title: data.title,
           description: data.description || "",
@@ -75,8 +81,7 @@ export default function EditTestCase() {
           severity: data.severity,
           type: data.type || "Functional",
           status: data.status,
-          changeSummary: "", // Leave blank for the user to type
-          // NEW: We wrap data.steps || [] in parentheses so it never tries to map over undefined!
+          changeSummary: "",
           steps: (data.steps || []).map((step: TestCaseDetail["steps"][0]) => ({
             action: step.action,
             testData: step.testData || "",
@@ -93,12 +98,12 @@ export default function EditTestCase() {
     fetchTestCase();
   }, [id, reset]);
 
-  // 4. Handle the actual submission
+  // ── Submit Handler (UNCHANGED) ─────────────────────────────────────────────
   const onSubmit = async (formData: EditFormValues) => {
     try {
       await testCaseApi.updateTestCase(id as string, formData);
       alert("Test case updated successfully! Version incremented.");
-      navigate("/test-cases"); // Go back to the list
+      navigate("/test-cases");
     } catch (error: unknown) {
       console.error("Update failed", error);
       const err = error as { response?: { data?: { message?: string } } };
@@ -106,148 +111,174 @@ export default function EditTestCase() {
     }
   };
 
-  if (loading) return <div className="p-8 text-center text-gray-500">Loading test case...</div>;
-  if (!testCaseInfo) return <div className="p-8 text-center text-red-500">Test case not found.</div>;
+  if (loading) return (
+    <div className="flex items-center justify-center h-64">
+      <div className="flex items-center gap-3 text-slate-400">
+        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-400"></div>
+        Loading test case...
+      </div>
+    </div>
+  );
+
+  if (!testCaseInfo) return (
+    <div className="p-8 text-center text-red-400">Test case not found.</div>
+  );
 
   return (
-    <div className="max-w-4xl mx-auto p-6 bg-white shadow rounded-lg mt-8 mb-12">
-      <h1 className="text-2xl font-bold text-gray-800 mb-2">Edit Test Case: {testCaseInfo.testCaseId}</h1>
-      <p className="text-sm text-gray-500 mb-6">Current Version: v{testCaseInfo.version}</p>
+    <div className="max-w-4xl mx-auto pb-12">
+
+      {/* ── Page Header ── */}
+      <div className="mb-8">
+        <p className="text-sm font-medium text-indigo-400 uppercase tracking-widest mb-1">Test Cases</p>
+        <h1 className="text-4xl font-bold text-white">
+          Edit: <span className="text-indigo-400 font-mono">{testCaseInfo.testCaseId}</span>
+        </h1>
+        <p className="text-sm text-slate-500 mt-1">Current Version: v{testCaseInfo.version}</p>
+      </div>
 
       <form onSubmit={handleSubmit(onSubmit, (errs) => console.log('Form errors:', errs))} className="space-y-6">
-        
-        {/* === SECTION 1: CHANGE SUMMARY (Required for edits) === */}
-        <div className="bg-blue-50 p-4 rounded-md border border-blue-200">
-          <label className="block text-sm font-bold text-blue-900 mb-1">Change Summary *</label>
-          <input 
-            {...register("changeSummary")} 
-            className="w-full border border-gray-300 p-2 rounded focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Why are you editing this? e.g., 'Updated login steps for new UI'"
-          />
-          {errors.changeSummary && <p className="text-red-500 text-xs mt-1">{errors.changeSummary.message}</p>}
-        </div>
 
-        {/* === SECTION 2: BASIC INFO === */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Title *</label>
-            <input {...register("title")} className="w-full border border-gray-300 p-2 rounded mt-1" />
-            {errors.title && <p className="text-red-500 text-xs">{errors.title.message}</p>}
-          </div>
+        {/* ── CARD 1: Change Summary ── */}
+        <Card className="bg-indigo-500/5 border-indigo-500/30">
+          <CardHeader>
+            <CardTitle className="text-base font-semibold text-indigo-300">Change Summary *</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <input
+              {...register("changeSummary")}
+              className={inputCls}
+              placeholder="Why are you editing this? e.g., 'Updated login steps for new UI'"
+            />
+            {errors.changeSummary && <p className={errorCls}>{errors.changeSummary.message}</p>}
+          </CardContent>
+        </Card>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Module *</label>
-            <input {...register("module")} className="w-full border border-gray-300 p-2 rounded mt-1" />
-            {errors.module && <p className="text-red-500 text-xs">{errors.module.message}</p>}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Priority</label>
-            <select {...register("priority")} className="w-full border border-gray-300 p-2 rounded mt-1">
-              <option value="P1">P1 (Critical)</option>
-              <option value="P2">P2 (High)</option>
-              <option value="P3">P3 (Medium)</option>
-              <option value="P4">P4 (Low)</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Severity</label>
-            <select {...register("severity")} className="w-full border border-gray-300 p-2 rounded mt-1">
-              <option value="BLOCKER">Blocker</option>
-              <option value="CRITICAL">Critical</option>
-              <option value="MAJOR">Major</option>
-              <option value="MINOR">Minor</option>
-              <option value="TRIVIAL">Trivial</option>
-            </select>
-            {errors.severity && <p className="text-red-500 text-xs">{errors.severity.message}</p>}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Type *</label>
-            <input {...register("type")} className="w-full border border-gray-300 p-2 rounded mt-1" placeholder="e.g., Functional, UI, Security" />
-            {errors.type && <p className="text-red-500 text-xs">{errors.type.message}</p>}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Status</label>
-            <select {...register("status")} className="w-full border border-gray-300 p-2 rounded mt-1">
-              <option value="DRAFT">Draft</option>
-              <option value="REVIEW">Review</option>
-              <option value="APPROVED">Approved</option>
-              <option value="ARCHIVED">Archived</option>
-            </select>
-          </div>
-        </div>
-        
-        {/* === SECTION 3: STEPS === */}
-        <div className="mt-8 border-t pt-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-gray-800">Test Steps</h2>
-            <button 
-              type="button" 
-              onClick={() => append({ action: "", testData: "", expectedResult: "" })}
-              className="bg-gray-800 text-white px-3 py-1 rounded text-sm hover:bg-gray-700"
-            >
-              + Add Step
-            </button>
-          </div>
-
-          {fields.map((field, index) => (
-            <div key={field.id} className="border border-gray-200 p-4 rounded-md mb-4 bg-gray-50 relative">
-              <div className="absolute top-2 right-2">
-                <button 
-                  type="button" 
-                  onClick={() => remove(index)}
-                  className="text-red-500 hover:text-red-700 text-sm font-medium"
-                >
-                  Remove
-                </button>
+        {/* ── CARD 2: Basic Info ── */}
+        <Card className="bg-slate-900/60 border-slate-800">
+          <CardHeader>
+            <CardTitle className="text-base font-semibold text-slate-200">Basic Information</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <label className={labelCls}>Title *</label>
+                <input {...register("title")} className={inputCls} />
+                {errors.title && <p className={errorCls}>{errors.title.message}</p>}
               </div>
-              <h4 className="font-bold text-gray-700 mb-2">Step {index + 1}</h4>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-gray-500">Action *</label>
-                  <textarea {...register(`steps.${index}.action`)} className="w-full border p-2 rounded mt-1 text-sm" rows={2}></textarea>
-                  {errors.steps?.[index]?.action && <p className="text-red-500 text-xs">{errors.steps[index]?.action?.message}</p>}
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-500">Test Data</label>
-                  <textarea {...register(`steps.${index}.testData`)} className="w-full border p-2 rounded mt-1 text-sm" rows={2}></textarea>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-500">Expected Result *</label>
-                  <textarea {...register(`steps.${index}.expectedResult`)} className="w-full border p-2 rounded mt-1 text-sm" rows={2}></textarea>
-                  {errors.steps?.[index]?.expectedResult && <p className="text-red-500 text-xs">{errors.steps[index]?.expectedResult?.message}</p>}
-                </div>
+              <div>
+                <label className={labelCls}>Module *</label>
+                <input {...register("module")} className={inputCls} />
+                {errors.module && <p className={errorCls}>{errors.module.message}</p>}
+              </div>
+              <div>
+                <label className={labelCls}>Priority</label>
+                <select {...register("priority")} className={selectCls}>
+                  <option value="P1">P1 — Critical</option>
+                  <option value="P2">P2 — High</option>
+                  <option value="P3">P3 — Medium</option>
+                  <option value="P4">P4 — Low</option>
+                </select>
+              </div>
+              <div>
+                <label className={labelCls}>Severity</label>
+                <select {...register("severity")} className={selectCls}>
+                  <option value="BLOCKER">Blocker</option>
+                  <option value="CRITICAL">Critical</option>
+                  <option value="MAJOR">Major</option>
+                  <option value="MINOR">Minor</option>
+                  <option value="TRIVIAL">Trivial</option>
+                </select>
+                {errors.severity && <p className={errorCls}>{errors.severity.message}</p>}
+              </div>
+              <div>
+                <label className={labelCls}>Type *</label>
+                <input {...register("type")} className={inputCls} placeholder="e.g., Functional, UI, Security" />
+                {errors.type && <p className={errorCls}>{errors.type.message}</p>}
+              </div>
+              <div>
+                <label className={labelCls}>Status</label>
+                <select {...register("status")} className={selectCls}>
+                  <option value="DRAFT">Draft</option>
+                  <option value="REVIEW">Review</option>
+                  <option value="APPROVED">Approved</option>
+                  <option value="ARCHIVED">Archived</option>
+                </select>
+              </div>
+              <div className="col-span-2">
+                <label className={labelCls}>Description</label>
+                <textarea {...register("description")} className={inputCls + ' resize-none'} rows={3} />
               </div>
             </div>
-          ))}
-          {errors.steps?.root && <p className="text-red-500 text-sm">{errors.steps.root.message}</p>}
-        </div>
+          </CardContent>
+        </Card>
 
-        <div className="flex justify-end gap-4 mt-8 border-t pt-4">
-          <button 
-            type="button" 
+        {/* ── CARD 3: Test Steps ── */}
+        <Card className="bg-slate-900/60 border-slate-800">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-base font-semibold text-slate-200">Test Steps</CardTitle>
+            <button
+              type="button"
+              onClick={() => append({ action: "", testData: "", expectedResult: "" })}
+              className="flex items-center gap-1.5 bg-green-500/10 hover:bg-green-500/20 text-green-300 border border-green-500/30 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+            >
+              <PlusCircle className="h-3.5 w-3.5" /> Add Step
+            </button>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {fields.map((field, index) => (
+              <div key={field.id} className="bg-slate-900 border border-slate-700/60 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-xs font-bold text-indigo-400 uppercase tracking-widest">Step {index + 1}</span>
+                  <button
+                    type="button"
+                    onClick={() => remove(index)}
+                    className="flex items-center gap-1 text-red-400 hover:text-red-300 text-xs font-medium transition-colors"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" /> Remove
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className={labelCls}>Action *</label>
+                    <textarea {...register(`steps.${index}.action`)} className={inputCls + ' resize-none'} rows={2} />
+                    {errors.steps?.[index]?.action && <p className={errorCls}>{errors.steps[index]?.action?.message}</p>}
+                  </div>
+                  <div>
+                    <label className={labelCls}>Test Data</label>
+                    <textarea {...register(`steps.${index}.testData`)} className={inputCls + ' resize-none'} rows={2} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Expected Result *</label>
+                    <textarea {...register(`steps.${index}.expectedResult`)} className={inputCls + ' resize-none'} rows={2} />
+                    {errors.steps?.[index]?.expectedResult && <p className={errorCls}>{errors.steps[index]?.expectedResult?.message}</p>}
+                  </div>
+                </div>
+              </div>
+            ))}
+            {errors.steps?.root && <p className={errorCls}>{errors.steps.root.message}</p>}
+          </CardContent>
+        </Card>
+
+        {/* ── Action Buttons ── */}
+        <div className="flex justify-end gap-3 pt-2">
+          <button
+            type="button"
             onClick={() => navigate("/test-cases")}
-            className="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-100"
+            className="px-5 py-2.5 text-sm font-medium rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 transition-colors"
           >
             Cancel
           </button>
-          <button 
-            type="submit" 
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium"
+          <button
+            type="submit"
+            className="px-5 py-2.5 text-sm font-semibold rounded-lg bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white transition-all shadow-lg shadow-indigo-900/30"
           >
             Save Changes
           </button>
         </div>
       </form>
 
-      {/* === NEW: SECTION 4: EXECUTION HISTORY === */}
-      {/* We only render this if the id exists from the URL */}
+      {/* ── Execution History (UNCHANGED logic) ── */}
       {id && <ExecutionHistory testCaseId={id} />}
-
     </div>
   );
 }

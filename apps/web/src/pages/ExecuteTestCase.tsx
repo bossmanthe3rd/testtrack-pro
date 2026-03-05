@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { getTestCaseById } from '../services/testCaseApi';
 import { executionApi } from '../services/executionApi';
 import CreateBugModal from '../components/CreateBugModal';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Clock, CheckCircle2, XCircle, AlertTriangle, SkipForward, Bug, ChevronRight } from 'lucide-react';
 
 interface TestStep {
   stepNumber: number;
@@ -20,19 +22,13 @@ export default function ExecuteTestCase() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  // State to hold our data
+  // ── State (ALL UNCHANGED) ──────────────────────────────────────────────────
   const [testCase, setTestCase] = useState<TestCaseDetails | null>(null);
   const [executionId, setExecutionId] = useState<string | null>(null);
-  
-  // State for the timer
   const [elapsedTime, setElapsedTime] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
-  
-  // State for the form inputs for the current step
   const [actualResult, setActualResult] = useState('');
   const [notes, setNotes] = useState('');
-  
-  // --- NEW STATE FOR THE BUG MODAL ---
   const [isBugModalOpen, setIsBugModalOpen] = useState(false);
   const [failedStepData, setFailedStepData] = useState<{
     stepNumber: number;
@@ -40,55 +36,44 @@ export default function ExecuteTestCase() {
     actualBehavior: string;
     action: string;
   } | null>(null);
-  
-  // A ref to prevent React Strict Mode from calling the start API twice
   const hasStarted = useRef(false);
 
-  // 1. Fetch the Test Case and Start Execution when the page loads
+  // ── useEffect: init execution (UNCHANGED) ─────────────────────────────────
   useEffect(() => {
     const initializeExecution = async () => {
       if (!id || hasStarted.current) return;
       hasStarted.current = true;
-
       try {
-        // Fetch the test case details
         const fetchedTestCase = await getTestCaseById(id);
         setTestCase(fetchedTestCase);
-
-        // Tell the backend we are starting an execution
         const execution = await executionApi.startExecution(id);
         setExecutionId(execution.id);
-        
-        // Start the timer
         setIsRunning(true);
       } catch (error) {
         console.error("Failed to initialize execution:", error);
         alert("Could not start execution. Check console.");
       }
     };
-
     initializeExecution();
   }, [id]);
 
-  // 2. The Timer Logic
+  // ── useEffect: timer (UNCHANGED) ──────────────────────────────────────────
   useEffect(() => {
     let intervalId: ReturnType<typeof setInterval> | undefined;
     if (isRunning) {
       intervalId = setInterval(() => {
         setElapsedTime((prev) => prev + 1);
-      }, 1000); // Add 1 second every 1000 milliseconds
+      }, 1000);
     }
-    return () => clearInterval(intervalId); // Cleanup when component unmounts
+    return () => clearInterval(intervalId);
   }, [isRunning]);
 
-  // 3. Handle marking a step as Pass/Fail/Blocked/Skipped
+  // ── handleStepSubmit (UNCHANGED) ──────────────────────────────────────────
   const handleStepSubmit = async (stepNumber: number, status: 'PASS' | 'FAIL' | 'BLOCKED' | 'SKIPPED') => {
     if (!executionId) return;
-
     try {
       await executionApi.saveStepResult(executionId, stepNumber, status, actualResult, notes);
       alert(`Step ${stepNumber} marked as ${status}!`);
-      // Clear the inputs for the next step
       setActualResult('');
       setNotes('');
     } catch (error) {
@@ -97,135 +82,187 @@ export default function ExecuteTestCase() {
     }
   };
 
-  // 4. Handle completing the entire test
+  // ── handleComplete (UNCHANGED) ────────────────────────────────────────────
   const handleComplete = async () => {
     if (!executionId) return;
-
     try {
-      setIsRunning(false); // Stop the timer
+      setIsRunning(false);
       await executionApi.completeExecution(executionId);
       alert("Execution complete!");
-      // Send them back to the test case details or listing page
-      navigate(`/test-cases`); 
+      navigate(`/test-cases`);
     } catch (error) {
       console.error("Failed to complete execution:", error);
       alert("Failed to complete. Check console.");
-      setIsRunning(true); // Restart timer if it failed to save
+      setIsRunning(true);
     }
   };
 
-  // Format the seconds into MM:SS
+  // ── formatTime (UNCHANGED) ────────────────────────────────────────────────
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60).toString().padStart(2, '0');
     const s = (seconds % 60).toString().padStart(2, '0');
     return `${m}:${s}`;
   };
 
-  if (!testCase) return <div className="p-8 text-center text-gray-500">Loading Execution Engine...</div>;
+  if (!testCase) return (
+    <div className="flex items-center justify-center h-64">
+      <div className="flex items-center gap-3 text-slate-400">
+        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-400"></div>
+        Loading Execution Engine...
+      </div>
+    </div>
+  );
 
   return (
-    <div className="max-w-4xl mx-auto p-6 bg-white shadow-md rounded-lg mt-8 relative">
-      
-      {/* Header & Timer */}
-      <div className="flex justify-between items-center border-b pb-4 mb-6">
+    <div className="max-w-4xl mx-auto pb-12">
+
+      {/* ── Focus Mode Header ── */}
+      <div className="flex justify-between items-start mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Executing: {testCase.title}</h1>
-          <p className="text-sm text-gray-500">{testCase.testCaseId}</p>
+          <p className="text-sm font-medium text-indigo-400 uppercase tracking-widest mb-1">
+            Focus Mode — Executing
+          </p>
+          <h1 className="text-3xl font-bold text-white leading-tight">{testCase.title}</h1>
+          <p className="text-sm font-mono text-slate-500 mt-1">{testCase.testCaseId}</p>
         </div>
-        <div className="text-right">
-          <div className="text-3xl font-mono font-bold text-indigo-600">{formatTime(elapsedTime)}</div>
-          <p className="text-xs text-gray-400 uppercase tracking-wide">Elapsed Time</p>
+
+        {/* Live Timer */}
+        <div className="flex flex-col items-end">
+          <div className="flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-xl px-4 py-3">
+            <Clock className={`h-5 w-5 ${isRunning ? 'text-indigo-400 animate-pulse' : 'text-slate-500'}`} />
+            <span className="text-3xl font-mono font-bold text-white tabular-nums">{formatTime(elapsedTime)}</span>
+          </div>
+          <p className="text-xs text-slate-500 uppercase tracking-widest mt-1.5">Elapsed Time</p>
         </div>
       </div>
 
-      {/* Steps List */}
-      <div className="space-y-8">
+      {/* ── Steps ── */}
+      <div className="space-y-5">
         {testCase.steps?.map((step: TestStep, index: number) => (
-          <div key={index} className="border rounded-md p-4 bg-gray-50">
-            <h3 className="font-semibold text-lg mb-2">Step {step.stepNumber}</h3>
-            
-            <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
-              <div className="bg-white p-3 border rounded shadow-sm">
-                <span className="font-bold text-gray-600 block mb-1">Action:</span>
-                {step.action}
-              </div>
-              <div className="bg-white p-3 border rounded shadow-sm">
-                <span className="font-bold text-gray-600 block mb-1">Expected Result:</span>
-                {step.expectedResult}
-              </div>
+          <Card key={index} className="bg-slate-900/60 border-slate-800 overflow-hidden">
+
+            {/* Step Number ribbon */}
+            <div className="bg-slate-950/60 border-b border-slate-800 px-6 py-3 flex items-center gap-3">
+              <span className="flex items-center justify-center w-7 h-7 rounded-full bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-bold">
+                {step.stepNumber}
+              </span>
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Step {step.stepNumber}</span>
+              <ChevronRight className="h-3.5 w-3.5 text-slate-600" />
+              <span className="text-xs text-slate-500 truncate">{step.action}</span>
             </div>
 
-            {/* Inputs for Actual Results */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Actual Result (Required for failures)</label>
-              <textarea 
-                className="w-full border rounded-md p-2 text-sm"
-                rows={2}
-                placeholder="What actually happened?"
-                value={actualResult}
-                onChange={(e) => setActualResult(e.target.value)}
-              />
-            </div>
+            <CardContent className="pt-5 space-y-5">
+              {/* Action + Expected columns */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-slate-950/50 border border-slate-700/50 rounded-lg p-4">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Action</p>
+                  <p className="text-sm text-slate-200 leading-relaxed">{step.action}</p>
+                </div>
+                <div className="bg-slate-950/50 border border-slate-700/50 rounded-lg p-4">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Expected Result</p>
+                  <p className="text-sm text-slate-200 leading-relaxed">{step.expectedResult}</p>
+                </div>
+              </div>
 
-            {/* Action Buttons */}
-            <div className="flex flex-wrap gap-2 items-center">
-              <button onClick={() => handleStepSubmit(step.stepNumber, 'PASS')} className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 text-sm font-medium">PASS</button>
-              <button onClick={() => handleStepSubmit(step.stepNumber, 'FAIL')} className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 text-sm font-medium">FAIL</button>
-              <button onClick={() => handleStepSubmit(step.stepNumber, 'BLOCKED')} className="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 text-sm font-medium">BLOCKED</button>
-              <button onClick={() => handleStepSubmit(step.stepNumber, 'SKIPPED')} className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm font-medium">SKIP</button>
-              
-              {/* --- NEW QUICK BUG BUTTON --- */}
-              <div className="ml-auto border-l pl-4 border-gray-300">
-                <button 
-                  type="button"
-                  onClick={() => {
-                    if (!actualResult.trim()) {
-                      alert("Please enter an Actual Result before logging a bug.");
-                      return;
-                    }
-                    // Save the data of this specific step to pass into the modal
-                    setFailedStepData({
-                      stepNumber: step.stepNumber,
-                      expectedBehavior: step.expectedResult,
-                      actualBehavior: actualResult,
-                      action: step.action
-                    });
-                    setIsBugModalOpen(true);
-                  }}
-                  className="px-4 py-2 bg-red-100 text-red-700 border border-red-300 rounded hover:bg-red-200 text-sm font-medium transition-colors"
+              {/* Actual Result input */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                  Actual Result <span className="text-slate-600">(required for FAIL)</span>
+                </label>
+                <textarea
+                  className="w-full bg-slate-950 border border-slate-700 text-slate-200 placeholder:text-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                  rows={2}
+                  placeholder="What actually happened?"
+                  value={actualResult}
+                  onChange={(e) => setActualResult(e.target.value)}
+                />
+              </div>
+
+              {/* ── Action Buttons ── */}
+              <div className="flex flex-wrap gap-3 items-center">
+                {/* PASS */}
+                <button
+                  onClick={() => handleStepSubmit(step.stepNumber, 'PASS')}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-green-500/15 hover:bg-green-500/25 text-green-300 border border-green-500/40 hover:border-green-400/60 rounded-xl font-bold text-sm transition-all"
                 >
-                  Fail & Create Bug
+                  <CheckCircle2 className="h-4 w-4" /> PASS
                 </button>
+
+                {/* FAIL */}
+                <button
+                  onClick={() => handleStepSubmit(step.stepNumber, 'FAIL')}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-red-500/15 hover:bg-red-500/25 text-red-300 border border-red-500/40 hover:border-red-400/60 rounded-xl font-bold text-sm transition-all"
+                >
+                  <XCircle className="h-4 w-4" /> FAIL
+                </button>
+
+                {/* BLOCKED */}
+                <button
+                  onClick={() => handleStepSubmit(step.stepNumber, 'BLOCKED')}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-yellow-500/15 hover:bg-yellow-500/25 text-yellow-300 border border-yellow-500/40 hover:border-yellow-400/60 rounded-xl font-bold text-sm transition-all"
+                >
+                  <AlertTriangle className="h-4 w-4" /> BLOCKED
+                </button>
+
+                {/* SKIP */}
+                <button
+                  onClick={() => handleStepSubmit(step.stepNumber, 'SKIPPED')}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-slate-700/50 hover:bg-slate-700 text-slate-400 hover:text-slate-300 border border-slate-600 rounded-xl font-bold text-sm transition-all"
+                >
+                  <SkipForward className="h-4 w-4" /> SKIP
+                </button>
+
+                {/* Fail & Create Bug — separated */}
+                <div className="ml-auto pl-3 border-l border-slate-700">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!actualResult.trim()) {
+                        alert("Please enter an Actual Result before logging a bug.");
+                        return;
+                      }
+                      setFailedStepData({
+                        stepNumber: step.stepNumber,
+                        expectedBehavior: step.expectedResult,
+                        actualBehavior: actualResult,
+                        action: step.action
+                      });
+                      setIsBugModalOpen(true);
+                    }}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 hover:border-rose-400/50 rounded-xl font-semibold text-sm transition-all"
+                  >
+                    <Bug className="h-4 w-4" /> Fail & Create Bug
+                  </button>
+                </div>
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         ))}
       </div>
 
-      {/* Complete Button */}
-      <div className="mt-10 border-t pt-6 text-right">
-        <button 
+      {/* ── Complete Execution Footer ── */}
+      <div className="mt-8 pt-6 border-t border-slate-800 flex justify-end">
+        <button
           onClick={handleComplete}
-          className="px-6 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 font-bold shadow-lg"
+          className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-900/30 transition-all text-sm"
         >
-          Complete Execution
+          <CheckCircle2 className="h-5 w-5" /> Complete Execution
         </button>
       </div>
 
-      {/* --- RENDER THE MODAL AT THE BOTTOM --- */}
+      {/* ── Bug Modal (ALL UNCHANGED) ── */}
       {failedStepData && id && (
         <CreateBugModal
           isOpen={isBugModalOpen}
           onClose={() => setIsBugModalOpen(false)}
-          testCaseId={id} // The database UUID from the URL params
-          testCaseDisplayId={testCase.testCaseId} // The readable ID (TC-XXXX)
+          testCaseId={id}
+          testCaseDisplayId={testCase.testCaseId}
           stepNumber={failedStepData.stepNumber}
           expectedBehavior={failedStepData.expectedBehavior}
           actualBehavior={failedStepData.actualBehavior}
           stepsToReproduce={`Step ${failedStepData.stepNumber}: ${failedStepData.action}`}
         />
       )}
-
     </div>
   );
 }
