@@ -18,14 +18,6 @@ export const createTestSuite = async (req: Request, res: Response) => {
     res.status(500).json({ message: error.message || "Internal Server Error" });
   }
 };
-/*export const createTestSuite = async (req: Request, res: Response) => {
-  try {
-    const suite = await testSuiteService.createTestSuite(req.body);
-    res.status(201).json({ message: "Test suite created", data: suite });
-  } catch (error: any) {
-    res.status(400).json({ message: error.message });
-  }
-};*/
 
 export const addTestCases = async (req: Request, res: Response) => {
   try {
@@ -47,7 +39,8 @@ export const removeTestCase = async (req: Request, res: Response) => {
     res.status(400).json({ message: error.message });
   }
 };
-// NEW: Fetch all test suites
+
+// Fetch all test suites
 export const getTestSuites = async (req: Request, res: Response) => {
   try {
     const suites = await testSuiteService.getTestSuites();
@@ -57,7 +50,7 @@ export const getTestSuites = async (req: Request, res: Response) => {
   }
 };
 
-// NEW: Fetch a single test suite by ID
+// Fetch a single test suite by ID
 export const getTestSuite = async (req: Request, res: Response) => {
   try {
     const suite = await testSuiteService.getTestSuiteById(req.params.suiteId as string);
@@ -67,5 +60,29 @@ export const getTestSuite = async (req: Request, res: Response) => {
     res.json(suite);
   } catch (error: any) {
     res.status(500).json({ message: "Error fetching test suite details" });
+  }
+};
+
+// --- NEW: FR-TS-002 SUITE EXECUTION CONTROLLERS ---
+
+export const startSuiteRun = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params; // Suite ID
+    const userId = (req as any).user.id; // Pulled from the authMiddleware
+
+    const result = await testSuiteService.startSuiteExecution(id as string, userId);
+    res.status(200).json({ success: true, data: result });
+  } catch (error: any) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+export const getSuiteReport = async (req: Request, res: Response) => {
+  try {
+    const { runId } = req.params;
+    const report = await testSuiteService.getSuiteRunReport(runId as string);
+    res.status(200).json({ success: true, data: report });
+  } catch (error: any) {
+    res.status(400).json({ success: false, message: error.message });
   }
 };

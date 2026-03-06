@@ -84,8 +84,8 @@ export const loginUser = async (userData: any) => {
     });
 
     // 5. Generate the JWT "Wristbands"
-    // We pack the user's ID and Role inside the token so we know who they are later
-    const payload = { id: user.id, role: user.role };
+    // Pack id, email, role AND name so /api/auth/me always has the display name
+    const payload = { id: user.id, email: user.email, role: user.role, name: user.name };
 
     const accessToken = jwt.sign(
         payload,
@@ -113,8 +113,8 @@ export const refreshUserToken = async (token: string) => {
     const user = await prisma.user.findUnique({ where: { id: decoded.id } });
     if (!user) throw new Error("User not found");
 
-    // 3. Generate a new set of tokens (Wristbands)
-    const payload = { id: user.id, role: user.role };
+    // 3. Generate a new set of tokens — always include name + email for the sidebar
+    const payload = { id: user.id, email: user.email, role: user.role, name: user.name };
 
     const newAccessToken = jwt.sign(
         payload,

@@ -31,3 +31,30 @@ export const testSuiteApi = {
     return response.data;
   }
 };
+// --- NEW: FR-TS-002 Suite Execution ---
+
+interface SuiteRunResult {
+  testRunId: string;
+  testCases: Array<{ id: string }>;
+}
+
+interface SuiteReportResult {
+  testRunName: string;
+  metrics: {
+    total: number;
+    passed: number;
+    failed: number;
+    blocked: number;
+  };
+  executions: unknown[];
+}
+
+export const startSuiteRun = async (suiteId: string): Promise<SuiteRunResult> => {
+  const response = await api.post(`/api/test-suites/${suiteId}/execute`);
+  return response.data.data as SuiteRunResult;
+};
+
+export const getSuiteReport = async (runId: string): Promise<SuiteReportResult> => {
+  const response = await api.get(`/api/test-suites/run/${runId}/report`);
+  return response.data.data as SuiteReportResult;
+};

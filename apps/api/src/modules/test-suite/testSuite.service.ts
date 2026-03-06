@@ -14,17 +14,15 @@ export const testSuiteService = {
 
   // 2. Link existing test cases to the suite
   async addTestCasesToSuite(suiteId: string, testCaseIds: string[]) {
-    // We map through the array of IDs and create the link records
     const linksToCreate = testCaseIds.map((testCaseId, index) => ({
       suiteId: suiteId,
       testCaseId: testCaseId,
-      order: index + 1 // Keeps track of what order they should be executed in
+      order: index + 1
     }));
 
-    // Create many links at once! (Prisma ignores duplicates if setup right, but we use createMany)
     return await prisma.suiteTestCase.createMany({
       data: linksToCreate,
-      skipDuplicates: true // Prevents crashing if a test case is already in the suite
+      skipDuplicates: true
     });
   },
 
@@ -43,17 +41,72 @@ export const testSuiteService = {
     return await prisma.testSuite.findUnique({
       where: { id: suiteId },
       include: {
-        testCases: { // This looks through the junction table!
+        testCases: { 
           include: {
-            testCase: true // Grabs the actual test case details
+            testCase: true 
           },
-          orderBy: { order: 'asc' }
+          orderBy: { order: 'asc' } // Ensure sequential order is preserved
         }
       }
     });
   },
-  // NEW: 5. Get all test suites
+
+  // 5. Get all test suites
   async getTestSuites() {
     return await prisma.testSuite.findMany();
+  },
+
+  // --- NEW: FR-TS-002 SUITE EXECUTION ---
+
+  // 6. Start a Suite Execution (Creates a TestRun)
+  async startSuiteExecution(suiteId: string, userId: string) {
+    // Grab the suite and its ordered test cases
+    const suite = await this.getTestSuiteById(suiteId);
+    if (!suite) throw new Error("Test Suite not found");
+    if (suite.testCases.length === 0) throw new Error("Cannot execute an empty suite");
+
+    // Create a container for this execution batch
+    const testRun = await prisma.testRun.create({
+      data: {
+        name: `Suite Run: ${suite.name} - ${new Date().toLocaleString()}`,
+        projectId: suite.projectId,
+        createdById: userId,
+        startDate: new Date(),
+      }
+    });
+
+    // We return the Run ID, plus the ordered list of test cases the frontend needs to execute
+    return {
+      testRunId: testRun.id,
+      testCases: suite.testCases.map(stc => stc.testCase)
+    };
+  },
+
+  // 7. Get Suite-Level Reporting (FR-TS-002)
+  async getSuiteRunReport(testRunId: string) {
+    const testRun = await prisma.testRun.findUnique({
+      where: { id: testRunId },
+      include: {
+        executions: {
+          include: { testCase: true }
+        }
+      }
+    });
+
+    if (!testRun) throw new Error("Test Run not found");
+
+    // Calculate consolidated metrics
+    const total = testRun.executions.length;
+    const passed = testRun.executions.filter(e => e.overallStatus === 'PASS').length;
+    const failed = testRun.executions.filter(e => e.overallStatus === 'FAIL').length;
+    const blocked = testRun.executions.filter(e => e.overallStatus === 'BLOCKED').length;
+    const skipped = testRun.executions.filter(e => e.overallStatus === 'SKIPPED').length;
+
+    return {
+      testRunName: testRun.name,
+      startDate: testRun.startDate,
+      metrics: { total, passed, failed, blocked, skipped },
+      executions: testRun.executions
+    };
   }
 };

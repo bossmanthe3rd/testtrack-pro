@@ -6,45 +6,7 @@ import { authMiddleware } from "../middleware/auth.middleware";
 
 const router = Router();
 
-/**
- * @swagger
- * /auth/login:
- * post:
- * summary: Log in a user
- * tags: [Authentication]
- * requestBody:
- * required: true
- * content:
- * application/json:
- * schema:
- * type: object
- * required:
- * - email
- * - password
- * properties:
- * email:
- * type: string
- * format: email
- * example: john.tester@company.com
- * password:
- * type: string
- * format: password
- * example: SecurePass@123
- * responses:
- * 200:
- * description: Successfully logged in
- * content:
- * application/json:
- * schema:
- * type: object
- * properties:
- * accessToken:
- * type: string
- * refreshToken:
- * type: string
- * 401:
- * description: Invalid credentials
- */
+
 // 1. Define all the public routes
 router.post("/register", register);
 router.post("/login", login);
@@ -52,13 +14,26 @@ router.post("/logout", logout);
 router.post("/refresh", refresh);
 
 // FIX 2: Use authMiddleware here instead of authenticate
-router.get("/me", authMiddleware, (req, res) => {
-    res.json({
+router.get("/me", authMiddleware, async (req, res) => {
+    try {
+      // Always query DB for fresh data — name/email may have changed since token was issued
+      const { prisma } = await import("../config/prisma");
+      const user = await prisma.user.findUnique({
+        where: { id: (req as any).user.id },
+        select: { id: true, email: true, role: true, name: true },
+      });
+      if (!user) return res.status(404).json({ success: false, message: "User not found" });
+      res.json({ id: user.id, email: user.email, role: user.role, name: user.name });
+    } catch {
+      // Fallback to token data if DB call fails
+      res.json({
         id: (req as any).user.id,
         email: (req as any).user.email,
         role: (req as any).user.role,
-        name: (req as any).user.name
-    });
+        name: (req as any).user.name,
+      });
+    }
 });
+
 
 export default router;

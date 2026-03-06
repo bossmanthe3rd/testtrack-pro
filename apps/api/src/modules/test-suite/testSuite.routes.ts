@@ -4,6 +4,7 @@ import { authMiddleware } from "../../middleware/auth.middleware";
 import { authorize } from "../../middleware/role.middleware";
 import { validate } from "../../middleware/validate.middleware";
 import { createTestSuiteSchema, addTestCasesSchema } from "./testSuite.validation";
+import { startSuiteRun, getSuiteReport } from './testSuite.controller';
 
 
 const router = Router();
@@ -21,7 +22,9 @@ router.post("/", validate(createTestSuiteSchema), createTestSuite);
 
 // Add test cases to a suite
 router.post("/:suiteId/test-cases", validate(addTestCasesSchema), addTestCases);
-
+// NEW: Suite Execution Routes
+router.post('/:id/execute', authorize('TESTER'), startSuiteRun);
+router.get('/run/:runId/report', getSuiteReport);
 // Remove a specific test case from a suite
 router.delete("/:suiteId/test-cases/:testCaseId", removeTestCase);
 

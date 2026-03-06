@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { testSuiteApi } from '../services/testSuiteApi';
+import { getProjectDropdownList, type ProjectListItem } from '../services/projectApi';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { FolderKanban, ArrowRight } from 'lucide-react';
+import { FolderKanban, ArrowRight, PlayCircle } from 'lucide-react';
 
 interface TestSuite {
   id: string;
@@ -15,11 +16,10 @@ export default function TestSuites() {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Form state
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  // HARDCODED FOR NOW: In a real app, this comes from a project selector dropdown
-  const [projectId, setProjectId] = useState('00000000-0000-0000-0000-000000000000');
+  const [projectId, setProjectId] = useState('');
+  const [projects, setProjects] = useState<ProjectListItem[]>([]);
 
   const fetchSuites = async () => {
     try {
@@ -34,19 +34,22 @@ export default function TestSuites() {
 
   useEffect(() => {
     fetchSuites();
+    getProjectDropdownList()
+      .then(setProjects)
+      .catch(err => console.error('Failed to load projects', err));
   }, []);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!projectId) return;
     try {
       await testSuiteApi.createSuite({ name, description, projectId });
-      alert("Suite created successfully!");
       setName('');
       setDescription('');
-      fetchSuites(); // Refresh the list
+      setProjectId('');
+      fetchSuites();
     } catch (error) {
-      alert("Failed to create suite. Make sure you are using a valid Project ID in the code!");
-      console.error(error);
+      console.error('Failed to create suite.', error);
     }
   };
 
@@ -86,9 +89,9 @@ export default function TestSuites() {
                   {suites.map(suite => (
                     <li
                       key={suite.id}
-                      className="p-4 rounded-xl border border-slate-800 bg-slate-950/40 hover:border-slate-700 hover:bg-slate-800/40 transition-colors flex justify-between items-center group"
+                      className="p-4 rounded-xl border border-slate-800 bg-slate-950/40 hover:border-slate-700 hover:bg-slate-800/40 transition-colors flex flex-col sm:flex-row sm:justify-between sm:items-center group gap-4"
                     >
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <h3 className="font-semibold text-indigo-400 group-hover:text-indigo-300 transition-colors truncate">
                           {suite.name}
                         </h3>
@@ -96,12 +99,23 @@ export default function TestSuites() {
                           <p className="text-sm text-slate-500 mt-0.5 truncate">{suite.description}</p>
                         )}
                       </div>
-                      <button
-                        onClick={() => navigate(`/test-suites/${suite.id}`)}
-                        className="ml-4 flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 hover:border-slate-600 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap"
-                      >
-                        Manage <ArrowRight className="h-3 w-3" />
-                      </button>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {/* NEW: Run Button */}
+                        <button
+                          onClick={() => navigate(`/test-suites/${suite.id}/run`)}
+                          className="flex items-center gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 hover:text-emerald-300 border border-emerald-500/20 hover:border-emerald-500/40 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap"
+                        >
+                          <PlayCircle className="h-3.5 w-3.5" /> Run Suite
+                        </button>
+                        
+                        {/* EXISTING: Manage Button */}
+                        <button
+                          onClick={() => navigate(`/test-suites/${suite.id}`)}
+                          className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 hover:border-slate-600 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap"
+                        >
+                          Manage <ArrowRight className="h-3 w-3" />
+                        </button>
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -140,17 +154,18 @@ export default function TestSuites() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-amber-400 uppercase tracking-wider mb-2">
-                    Project ID (Temporary)
-                  </label>
-                  <input
-                    type="text"
+                  <label className={labelClass}>Project *</label>
+                  <select
                     required
                     value={projectId}
                     onChange={(e) => setProjectId(e.target.value)}
-                    className="w-full bg-amber-500/5 border border-amber-500/30 text-amber-200 placeholder:text-amber-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                    placeholder="Must be a valid UUID from your DB"
-                  />
+                    className={inputClass}
+                  >
+                    <option value="" disabled>— Choose a project —</option>
+                    {projects.map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
                 </div>
                 <button
                   type="submit"

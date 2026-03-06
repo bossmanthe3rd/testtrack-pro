@@ -4,9 +4,10 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate } from 'react-router-dom';
 import { createBug, uploadAttachment } from '../services/bugApi';
+import { getProjectDropdownList, type ProjectListItem } from '../services/projectApi';
 import { api } from '../features/auth/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Upload, CheckCircle2 } from 'lucide-react';
+import { Upload, CheckCircle2, FileText } from 'lucide-react';
 
 // ── Zod Schema (UNCHANGED) ─────────────────────────────────────────────────────
 const bugSchema = z.object({
@@ -21,6 +22,7 @@ const bugSchema = z.object({
   affectedVersion: z.string().min(1, 'Version is required'),
   assignedToId: z.string().optional(),
   linkedTestCaseId: z.string().optional(),
+  projectId: z.string().min(1, 'Project is required'),
 });
 
 type BugFormData = z.infer<typeof bugSchema>;
@@ -35,12 +37,15 @@ const errorCls = "text-red-400 text-xs mt-1";
 export default function CreateBug() {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [attachmentUrl, setAttachmentUrl] = useState<string | null>(null);
+  
+  // 🟢 CHANGED: State now holds an array of URLs instead of a single string
+  const [attachmentUrls, setAttachmentUrls] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
 
   // ── Dropdown data states (UNCHANGED) ──────────────────────────────────────
   const [developers, setDevelopers] = useState<{id: string, name: string}[]>([]);
   const [testCases, setTestCases] = useState<{id: string, testCaseId: string, title: string}[]>([]);
+  const [projects, setProjects] = useState<ProjectListItem[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
 
   // ── useForm (UNCHANGED) ────────────────────────────────────────────────────
@@ -61,6 +66,9 @@ export default function CreateBug() {
           ? tcResponse.data.data
           : tcResponse.data.data?.data || [];
         setTestCases(tcData);
+
+        const projectData = await getProjectDropdownList();
+        setProjects(projectData);
       } catch (err) {
         console.error("Failed to load dropdown data", err);
       } finally {
@@ -70,25 +78,33 @@ export default function CreateBug() {
     fetchDropdownData();
   }, []);
 
-  // ── File Upload Handler (UNCHANGED) ───────────────────────────────────────
+  // ── File Upload Handler ───────────────────────────────────────
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       setUploading(true);
       try {
-        const file = e.target.files[0];
-        const url = await uploadAttachment(file);
-        setAttachmentUrl(url);
-        alert("File uploaded successfully!");
+        // 🟢 CHANGED: Loop through all selected files and upload them one by one
+        const newUrls: string[] = [];
+        for (let i = 0; i < e.target.files.length; i++) {
+          const file = e.target.files[i];
+          const url = await uploadAttachment(file);
+          newUrls.push(url);
+        }
+        
+        // Append the new URLs to any existing ones
+        setAttachmentUrls(prev => [...prev, ...newUrls]);
       } catch (error) {
         console.error("Upload failed", error);
-        alert("Failed to upload file.");
+        alert("Failed to upload file(s).");
       } finally {
         setUploading(false);
+        // Reset the file input so the user can upload more files if they want
+        e.target.value = '';
       }
     }
   };
 
-  // ── Submit Handler (UNCHANGED) ─────────────────────────────────────────────
+  // ── Submit Handler ─────────────────────────────────────────────
   const onSubmit = async (data: BugFormData) => {
     setIsSubmitting(true);
     try {
@@ -96,10 +112,10 @@ export default function CreateBug() {
         ...data,
         assignedToId: data.assignedToId === "" ? undefined : data.assignedToId,
         linkedTestCaseId: data.linkedTestCaseId === "" ? undefined : data.linkedTestCaseId,
-        attachments: attachmentUrl ? [attachmentUrl] : [],
+        // 🟢 CHANGED: Send the array of URLs directly to the backend
+        attachments: attachmentUrls,
       };
       await createBug(finalPayload);
-      alert("Bug reported successfully!");
       navigate('/bugs');
     } catch (error) {
       console.error(error);
@@ -128,6 +144,23 @@ export default function CreateBug() {
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+
+        {/* ── CARD 0: Project ── */}
+        <Card className="bg-indigo-500/5 border-indigo-500/30">
+          <CardHeader>
+            <CardTitle className="text-base font-semibold text-indigo-300">Project *</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <label className={labelCls}>Select Project</label>
+            <select {...register('projectId')} className={selectCls} defaultValue="">
+              <option value="" disabled>— Choose a project —</option>
+              {projects.map(p => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+            {errors.projectId && <p className={errorCls}>{errors.projectId.message}</p>}
+          </CardContent>
+        </Card>
 
         {/* ── CARD 1: Assignment & Linking ── */}
         <Card className="bg-indigo-500/5 border-indigo-500/30">
@@ -240,23 +273,42 @@ export default function CreateBug() {
         {/* ── CARD 4: Attachment ── */}
         <Card className="bg-slate-900/60 border-slate-800">
           <CardHeader>
-            <CardTitle className="text-base font-semibold text-slate-200">Attachment</CardTitle>
+            <CardTitle className="text-base font-semibold text-slate-200">Attachments</CardTitle>
           </CardHeader>
           <CardContent>
-            <label className={labelCls}>Screenshot or Log File</label>
-            <div className="flex items-center gap-4">
+            <label className={labelCls}>Upload Evidence (Screenshots/Logs)</label>
+            <div className="flex items-center gap-4 flex-wrap mt-2">
               <label className="flex items-center gap-2 cursor-pointer bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
                 <Upload className="h-4 w-4" />
-                Choose File
-                <input type="file" className="hidden" onChange={handleFileChange} disabled={uploading} />
+                Select Files
+                {/* 🟢 CHANGED: Added 'multiple' attribute so users can select multiple files at once */}
+                <input type="file" multiple className="hidden" onChange={handleFileChange} disabled={uploading} />
               </label>
+              
               {uploading && <span className="text-indigo-400 text-sm animate-pulse">Uploading to cloud...</span>}
-              {attachmentUrl && (
-                <span className="flex items-center gap-1.5 text-green-400 text-sm">
-                  <CheckCircle2 className="h-4 w-4" /> Uploaded successfully
+              
+              {/* 🟢 CHANGED: Display a count of how many files have been uploaded */}
+              {attachmentUrls.length > 0 && !uploading && (
+                <span className="flex items-center gap-1.5 text-green-400 text-sm bg-green-500/10 px-3 py-1.5 rounded-md border border-green-500/20">
+                  <CheckCircle2 className="h-4 w-4" /> {attachmentUrls.length} file(s) attached
                 </span>
               )}
             </div>
+
+            {/* Visual list of attachments */}
+            {attachmentUrls.length > 0 && (
+              <div className="mt-4 flex flex-wrap gap-3">
+                {attachmentUrls.map((url, idx) => (
+                  <div key={idx} className="h-16 w-24 rounded bg-slate-950 border border-slate-700 flex items-center justify-center overflow-hidden opacity-80">
+                    {url.match(/\.(jpeg|jpg|gif|png|webp)$/i) ? (
+                       <img src={url} alt="upload thumbnail" className="h-full w-full object-cover" />
+                    ) : (
+                       <FileText className="text-slate-500 h-6 w-6" />
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 

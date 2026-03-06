@@ -19,6 +19,7 @@ import ExecuteTestCase from './pages/ExecuteTestCase';
 // Test Suite Pages
 import TestSuites from './pages/TestSuites';
 import ManageTestSuite from './pages/ManageTestSuite';
+import SuiteRunner from './pages/SuiteRunner'; // 🟢 ADDED THIS IMPORT
 
 // Bug Management Pages
 import CreateBug from './pages/CreateBug';
@@ -27,6 +28,14 @@ import BugList from './pages/BugList';
 // Developer Workflow
 import DeveloperDashboard from './pages/DeveloperDashboard';
 import BugDetail from './pages/BugDetail';
+
+// Project Management
+import ProjectList from './pages/ProjectList';
+import CreateProject from './pages/CreateProject';
+import ProjectDetail from './pages/ProjectDetail';
+
+// User Profile
+import Profile from './pages/Profile';
 
 function App() {
   const { fetchMe } = useAuthStore();
@@ -62,6 +71,9 @@ function App() {
             <Route path="/test-cases" element={<TestCaseList />} />
             <Route path="/bugs" element={<BugList />} />
             <Route path="/bugs/:id" element={<BugDetail />} />
+            <Route path="/projects" element={<ProjectList />} />
+            <Route path="/projects/:id" element={<ProjectDetail />} />
+            <Route path="/profile" element={<Profile />} />
           </Route>
 
           {/* -----------------------------------------
@@ -75,8 +87,10 @@ function App() {
             
             <Route path="/test-suites" element={<TestSuites />} />
             <Route path="/test-suites/:id" element={<ManageTestSuite />} />
+            <Route path="/test-suites/:suiteId/run" element={<SuiteRunner />} />
 
             <Route path="/bugs/create" element={<CreateBug />} />
+            <Route path="/projects/create" element={<CreateProject />} />
           </Route>
 
           {/* -----------------------------------------

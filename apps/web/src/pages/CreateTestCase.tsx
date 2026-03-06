@@ -1,9 +1,10 @@
-import React from 'react';
+import { useState, useEffect } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../features/auth/api';
+import { getProjectDropdownList, type ProjectListItem } from '../services/projectApi';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { PlusCircle, Trash2 } from 'lucide-react';
 
@@ -41,8 +42,21 @@ const errorCls = "text-red-400 text-xs mt-1";
 // ── Component ──────────────────────────────────────────────────────────────────
 export default function CreateTestCase() {
     const navigate = useNavigate();
+    const [projects, setProjects] = useState<ProjectListItem[]>([]);
 
-    // ── useForm (UNCHANGED) ────────────────────────────────────────────────────
+    useEffect(() => {
+      const loadProjects = async () => {
+        try {
+          const data = await getProjectDropdownList();
+          setProjects(data);
+        } catch {
+          console.error('Failed to load projects');
+        }
+      };
+      loadProjects();
+    }, []);
+
+    // ── useForm ────────────────────────────────────────────────────
     const {
         register,
         control,
@@ -69,13 +83,8 @@ export default function CreateTestCase() {
     // ── Submit Handler (UNCHANGED) ─────────────────────────────────────────────
     const onSubmit = async (data: FormData) => {
         try {
-            const payload = {
-                ...data,
-                projectId: "4bb5bff1-8d0d-44b5-a519-2251b3c17c21",
-            };
-            await api.post('/api/test-cases', payload);
-            alert('Test Case created successfully!');
-            navigate('/dashboard');
+            await api.post('/api/test-cases', data);
+            navigate('/test-cases');
         } catch (error: unknown) {
             console.error('Failed to create test case:', error);
             const e = error as { response?: { data?: { error?: string } } };
@@ -119,8 +128,13 @@ export default function CreateTestCase() {
                                 {errors.module && <p className={errorCls}>{errors.module.message}</p>}
                             </div>
                             <div>
-                                <label className={labelCls}>Project ID *</label>
-                                <input {...register('projectId')} className={inputCls} placeholder="e.g., 123e4567-e89b-12d3-a456-426614174000" />
+                                <label className={labelCls}>Project *</label>
+                                <select {...register('projectId')} className={selectCls} defaultValue="">
+                                  <option value="" disabled>— Choose a project —</option>
+                                  {projects.map(p => (
+                                    <option key={p.id} value={p.id}>{p.name}</option>
+                                  ))}
+                                </select>
                                 {errors.projectId && <p className={errorCls}>{errors.projectId.message}</p>}
                             </div>
 

@@ -7,7 +7,9 @@ import {
   Bug, 
   FolderKanban, 
   LogOut,
-  CheckCheck
+  CheckCheck,
+  Layers,
+  User
 } from 'lucide-react';
 
 export default function Layout() {
@@ -83,6 +85,17 @@ export default function Layout() {
             Test Cases
           </Link>
 
+          {/* Projects Link */}
+          <Link 
+            to="/projects"
+            className={`flex items-center px-4 py-3 rounded-lg transition-colors ${
+              isActive('/projects') ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+            }`}
+          >
+            <Layers className="w-5 h-5 mr-3" />
+            Projects
+          </Link>
+
           {/* Suites Link */}
           <Link 
             to="/test-suites"
@@ -104,6 +117,17 @@ export default function Layout() {
             <Bug className="w-5 h-5 mr-3" />
             Defects & Bugs
           </Link>
+
+          {/* Profile Link */}
+          <Link 
+            to="/profile"
+            className={`flex items-center px-4 py-3 rounded-lg transition-colors ${
+              isActive('/profile') ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+            }`}
+          >
+            <User className="w-5 h-5 mr-3" />
+            My Profile
+          </Link>
         </nav>
 
         {/* User Profile & Logout at the bottom of sidebar */}
@@ -113,7 +137,7 @@ export default function Layout() {
               {user?.email?.charAt(0).toUpperCase() || 'U'}
             </div>
             <div>
-              <p className="text-sm font-medium text-slate-200">{user?.email || 'User'}</p>
+              <p className="text-sm font-medium text-slate-200">{user?.name || user?.email || 'User'}</p>
               <p className="text-xs text-slate-500 font-semibold tracking-wider">{user?.role || 'Role'}</p>
             </div>
           </div>

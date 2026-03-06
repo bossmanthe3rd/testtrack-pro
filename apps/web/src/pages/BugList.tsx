@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getBugs, type Bug, type BugListResponse } from '../services/bugApi';
 import { Card, CardContent } from '../components/ui/card';
+// 🟢 ADDED: Import the auth store to check the user's role
+import { useAuthStore } from '../features/auth/authStore';
 
 // ── Badge helpers ──────────────────────────────────────────────────────────────
 
@@ -50,6 +52,8 @@ const PriorityBadge = ({ priority }: { priority: string }) => {
 
 export default function BugList() {
   const navigate = useNavigate();
+  // 🟢 ADDED: Extract the user object from the store
+  const { user } = useAuthStore();
 
   const [bugs, setBugs] = useState<Bug[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -106,12 +110,16 @@ export default function BugList() {
           <p className="text-sm font-medium text-red-400 uppercase tracking-widest mb-1">Tracker</p>
           <h1 className="text-4xl font-bold text-white">Bug Tracker</h1>
         </div>
-        <button
-          onClick={() => navigate('/bugs/create')}
-          className="bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white px-5 py-2.5 rounded-lg font-semibold transition-all shadow-lg shadow-red-900/30 text-sm"
-        >
-          + Report New Bug
-        </button>
+        
+        {/* 🟢 CHANGED: Wrap the button so ONLY TESTERS (or ADMINS) can see it */}
+        {(user?.role === 'TESTER' || user?.role === 'ADMIN') && (
+          <button
+            onClick={() => navigate('/bugs/create')}
+            className="bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white px-5 py-2.5 rounded-lg font-semibold transition-all shadow-lg shadow-red-900/30 text-sm"
+          >
+            + Report New Bug
+          </button>
+        )}
       </div>
 
       {/* ── Filter Bar ── */}

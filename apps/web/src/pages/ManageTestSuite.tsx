@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { testSuiteApi } from '../services/testSuiteApi';
 import { getTestCases } from '../services/testCaseApi';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { ArrowLeft, FolderKanban, PlusCircle, Trash2, FlaskConical } from 'lucide-react';
+import { ArrowLeft, FolderKanban, PlusCircle, Trash2, FlaskConical, Play } from 'lucide-react'; // Added Play
 
 interface TestCase {
   id: string;
@@ -27,13 +27,11 @@ export default function ManageTestSuite() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  // ── State (UNCHANGED) ─────────────────────────────────────────────────────
   const [suite, setSuite] = useState<TestSuite | null>(null);
   const [allTestCases, setAllTestCases] = useState<TestCase[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  // ── Data fetch (UNCHANGED) ─────────────────────────────────────────────────
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -53,7 +51,6 @@ export default function ManageTestSuite() {
     fetchData();
   }, [id, refreshTrigger]);
 
-  // ── handleAdd (UNCHANGED) ─────────────────────────────────────────────────
   const handleAdd = async (testCaseId: string) => {
     try {
       await testSuiteApi.addTestCases(id as string, [testCaseId]);
@@ -64,7 +61,6 @@ export default function ManageTestSuite() {
     }
   };
 
-  // ── handleRemove (UNCHANGED) ──────────────────────────────────────────────
   const handleRemove = async (testCaseId: string) => {
     try {
       await testSuiteApi.removeTestCase(id as string, testCaseId);
@@ -86,9 +82,10 @@ export default function ManageTestSuite() {
 
   if (!suite) return <div className="p-8 text-center text-red-400">Suite not found.</div>;
 
-  // ── Filtering (UNCHANGED logic) ───────────────────────────────────────────
   const testCasesInSuiteIds = suite.testCases.map((link: SuiteTestCaseLink) => link.testCaseId);
   const availableTestCases = allTestCases.filter(tc => !testCasesInSuiteIds.includes(tc.id));
+  
+  const isSuiteEmpty = suite.testCases.length === 0;
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -101,15 +98,32 @@ export default function ManageTestSuite() {
         <ArrowLeft className="h-4 w-4" /> Back to Suites
       </button>
 
-      <div className="mb-8 flex items-start gap-4">
-        <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-xl">
-          <FolderKanban className="h-6 w-6 text-purple-400" />
+      {/* NEW: Flex container to align title and RUN button on opposite sides */}
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+        <div className="flex items-start gap-4">
+          <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-xl">
+            <FolderKanban className="h-6 w-6 text-purple-400" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-purple-400 uppercase tracking-widest mb-0.5">Test Suite</p>
+            <h1 className="text-3xl font-bold text-white">{suite.name}</h1>
+            {suite.description && <p className="text-slate-400 text-sm mt-1">{suite.description}</p>}
+          </div>
         </div>
-        <div>
-          <p className="text-sm font-medium text-purple-400 uppercase tracking-widest mb-0.5">Test Suite</p>
-          <h1 className="text-3xl font-bold text-white">{suite.name}</h1>
-          {suite.description && <p className="text-slate-400 text-sm mt-1">{suite.description}</p>}
-        </div>
+
+        {/* NEW: Big Run Suite Button */}
+        <button
+          onClick={() => navigate(`/test-suites/${suite.id}/run`)}
+          disabled={isSuiteEmpty}
+          className={`flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold shadow-lg transition-all ${
+            isSuiteEmpty 
+              ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700' 
+              : 'bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white shadow-emerald-900/40 hover:shadow-emerald-900/60 transform hover:-translate-y-0.5'
+          }`}
+        >
+          <Play className="h-5 w-5 fill-current" />
+          {isSuiteEmpty ? 'Add Tests to Run' : 'Run Entire Suite'}
+        </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -123,7 +137,7 @@ export default function ManageTestSuite() {
             </span>
           </CardHeader>
           <CardContent>
-            {suite.testCases.length === 0 ? (
+            {isSuiteEmpty ? (
               <div className="py-10 text-center">
                 <FlaskConical className="h-8 w-8 text-slate-700 mx-auto mb-2" />
                 <p className="text-slate-500 text-sm italic">Suite is empty. Add test cases →</p>

@@ -2,9 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getTestCaseById } from '../services/testCaseApi';
 import { executionApi } from '../services/executionApi';
+import {api} from '../services/api'; // 🟢 Added direct API access to bypass wrapper limitations
 import CreateBugModal from '../components/CreateBugModal';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Clock, CheckCircle2, XCircle, AlertTriangle, SkipForward, Bug, ChevronRight } from 'lucide-react';
+import { Card, CardContent } from '../components/ui/card';
+import { Clock, CheckCircle2, XCircle, AlertTriangle, SkipForward, Bug, ChevronRight, Play, Pause } from 'lucide-react'; // 🟢 Added Play/Pause
 
 interface TestStep {
   stepNumber: number;
@@ -22,11 +23,14 @@ export default function ExecuteTestCase() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  // ── State (ALL UNCHANGED) ──────────────────────────────────────────────────
   const [testCase, setTestCase] = useState<TestCaseDetails | null>(null);
   const [executionId, setExecutionId] = useState<string | null>(null);
+  
+  // 🟢 CHANGED: Added isPaused state
   const [elapsedTime, setElapsedTime] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  
   const [actualResult, setActualResult] = useState('');
   const [notes, setNotes] = useState('');
   const [isBugModalOpen, setIsBugModalOpen] = useState(false);
@@ -38,7 +42,6 @@ export default function ExecuteTestCase() {
   } | null>(null);
   const hasStarted = useRef(false);
 
-  // ── useEffect: init execution (UNCHANGED) ─────────────────────────────────
   useEffect(() => {
     const initializeExecution = async () => {
       if (!id || hasStarted.current) return;
@@ -57,18 +60,17 @@ export default function ExecuteTestCase() {
     initializeExecution();
   }, [id]);
 
-  // ── useEffect: timer (UNCHANGED) ──────────────────────────────────────────
+  // 🟢 CHANGED: Timer only ticks if NOT paused
   useEffect(() => {
     let intervalId: ReturnType<typeof setInterval> | undefined;
-    if (isRunning) {
+    if (isRunning && !isPaused) {
       intervalId = setInterval(() => {
         setElapsedTime((prev) => prev + 1);
       }, 1000);
     }
     return () => clearInterval(intervalId);
-  }, [isRunning]);
+  }, [isRunning, isPaused]);
 
-  // ── handleStepSubmit (UNCHANGED) ──────────────────────────────────────────
   const handleStepSubmit = async (stepNumber: number, status: 'PASS' | 'FAIL' | 'BLOCKED' | 'SKIPPED') => {
     if (!executionId) return;
     try {
@@ -82,12 +84,14 @@ export default function ExecuteTestCase() {
     }
   };
 
-  // ── handleComplete (UNCHANGED) ────────────────────────────────────────────
   const handleComplete = async () => {
     if (!executionId) return;
     try {
       setIsRunning(false);
-      await executionApi.completeExecution(executionId);
+      // 🟢 CHANGED: Pass the durationOverride using raw axios to ensure it goes through
+      await api.post(`/api/executions/${executionId}/complete`, {
+        durationOverride: elapsedTime
+      });
       alert("Execution complete!");
       navigate(`/test-cases`);
     } catch (error) {
@@ -97,7 +101,6 @@ export default function ExecuteTestCase() {
     }
   };
 
-  // ── formatTime (UNCHANGED) ────────────────────────────────────────────────
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60).toString().padStart(2, '0');
     const s = (seconds % 60).toString().padStart(2, '0');
@@ -114,7 +117,26 @@ export default function ExecuteTestCase() {
   );
 
   return (
-    <div className="max-w-4xl mx-auto pb-12">
+    <div className="max-w-4xl mx-auto pb-12 relative">
+      
+      {/* 🟢 NEW: Full Screen Pause Overlay */}
+      {isPaused && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-700 p-8 rounded-2xl shadow-2xl flex flex-col items-center">
+            <div className="h-16 w-16 bg-amber-500/20 rounded-full flex items-center justify-center mb-4">
+              <Pause className="h-8 w-8 text-amber-500" />
+            </div>
+            <h2 className="text-2xl font-bold text-white mb-2">Execution Paused</h2>
+            <p className="text-slate-400 mb-6 font-mono text-xl">{formatTime(elapsedTime)}</p>
+            <button 
+              onClick={() => setIsPaused(false)}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg shadow-indigo-900/30 flex items-center gap-2"
+            >
+              <Play className="h-5 w-5" /> Resume Testing
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Focus Mode Header ── */}
       <div className="flex justify-between items-start mb-8">
@@ -126,21 +148,31 @@ export default function ExecuteTestCase() {
           <p className="text-sm font-mono text-slate-500 mt-1">{testCase.testCaseId}</p>
         </div>
 
-        {/* Live Timer */}
+        {/* 🟢 CHANGED: Live Timer with Controls */}
         <div className="flex flex-col items-end">
-          <div className="flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-xl px-4 py-3">
-            <Clock className={`h-5 w-5 ${isRunning ? 'text-indigo-400 animate-pulse' : 'text-slate-500'}`} />
-            <span className="text-3xl font-mono font-bold text-white tabular-nums">{formatTime(elapsedTime)}</span>
+          <div className="flex items-center gap-4 bg-slate-900 border border-slate-700 rounded-xl px-4 py-2">
+            <div className="flex items-center gap-2">
+              <Clock className={`h-5 w-5 ${isRunning && !isPaused ? 'text-indigo-400 animate-pulse' : 'text-slate-500'}`} />
+              <span className={`text-3xl font-mono font-bold tabular-nums ${isPaused ? 'text-amber-500' : 'text-white'}`}>
+                {formatTime(elapsedTime)}
+              </span>
+            </div>
+            <div className="h-8 w-px bg-slate-700 mx-1"></div>
+            <button 
+              onClick={() => setIsPaused(!isPaused)}
+              className={`p-2 rounded-lg transition-all ${isPaused ? 'bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30' : 'bg-amber-500/10 text-amber-500 hover:bg-amber-500/20'}`}
+              title={isPaused ? "Resume" : "Pause"}
+            >
+              {isPaused ? <Play className="h-5 w-5" /> : <Pause className="h-5 w-5" />}
+            </button>
           </div>
-          <p className="text-xs text-slate-500 uppercase tracking-widest mt-1.5">Elapsed Time</p>
         </div>
       </div>
 
       {/* ── Steps ── */}
-      <div className="space-y-5">
+      <div className={`space-y-5 transition-opacity duration-300 ${isPaused ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
         {testCase.steps?.map((step: TestStep, index: number) => (
           <Card key={index} className="bg-slate-900/60 border-slate-800 overflow-hidden">
-
             {/* Step Number ribbon */}
             <div className="bg-slate-950/60 border-b border-slate-800 px-6 py-3 flex items-center gap-3">
               <span className="flex items-center justify-center w-7 h-7 rounded-full bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-bold">
@@ -241,9 +273,10 @@ export default function ExecuteTestCase() {
       </div>
 
       {/* ── Complete Execution Footer ── */}
-      <div className="mt-8 pt-6 border-t border-slate-800 flex justify-end">
+      <div className={`mt-8 pt-6 border-t border-slate-800 flex justify-end transition-opacity ${isPaused ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
         <button
           onClick={handleComplete}
+          disabled={isPaused}
           className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-900/30 transition-all text-sm"
         >
           <CheckCircle2 className="h-5 w-5" /> Complete Execution

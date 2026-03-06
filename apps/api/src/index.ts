@@ -15,6 +15,8 @@ import uploadRoutes from "./routes/upload.routes";
 import bugRoutes from "./modules/bug/bug.routes";
 // --- NEW: Import Reports Routes ---
 import reportsRoutes from "./modules/reports/reports.routes";
+import projectRoutes from "./modules/project/project.routes";
+import userRoutes from "./modules/user/user.routes";
 import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec } from './config/swagger';
 const app = express();
@@ -49,6 +51,8 @@ app.use("/api/test-suites", testSuiteRoutes);
 app.use("/api/executions", executionRoutes);
 // --- NEW: Register Reports Routes ---
 app.use("/api/reports", reportsRoutes);
+app.use("/api/projects", projectRoutes);
+app.use("/api/users", userRoutes);
 
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });
