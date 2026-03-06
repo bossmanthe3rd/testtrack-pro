@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { createTestCaseSchema, listTestCaseSchema, editTestCaseSchema } from './testCase.validation';
+import { createTestCaseSchema, listTestCaseSchema, editTestCaseSchema, updateTestCaseStatusSchema } from './testCase.validation';
 import * as testCaseService from './testCase.service';
 
 export async function handleCreateTestCase(req: Request, res: Response) {
@@ -88,7 +88,8 @@ export const getTestCase = async (req: Request, res: Response) => {
 export const updateTestCase = async (req: Request, res: Response) => {
   try {
     const testCaseId = req.params.id;
-    const userId = (req as any).user.id; // Assuming authMiddleware attaches user to req
+    const userId = (req as any).user.id;
+    const userRole = (req as any).user.role; // Extract role from JWT payload
 
     // Validate the incoming body against editTestCaseSchema
     const validatedData = editTestCaseSchema.parse({ body: req.body });
@@ -96,6 +97,7 @@ export const updateTestCase = async (req: Request, res: Response) => {
     const updatedTestCase = await testCaseService.updateTestCase(
       testCaseId as string, 
       userId, 
+      userRole, // Pass the role here
       validatedData.body
     );
 
@@ -108,6 +110,24 @@ export const updateTestCase = async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, errors: error.errors });
     }
     res.status(400).json({ message: error.message || "Error updating test case" });
+  }
+};
+
+export const updateTestCaseStatus = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = (req as any).user.id;
+    const userRole = (req as any).user.role;
+    const { status } = req.body;
+
+    const updatedTestCase = await testCaseService.updateTestCaseStatus(id as string, userId, userRole, status);
+
+    res.json({
+      message: "Test case status updated successfully",
+      data: updatedTestCase
+    });
+  } catch (error: any) {
+    res.status(400).json({ message: error.message || "Error updating test case status" });
   }
 };
 // ... your existing controllers ...

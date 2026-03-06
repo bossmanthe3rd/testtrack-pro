@@ -24,3 +24,14 @@ export const completeExecutionSchema = z.object({
     executionId: z.string().uuid("Invalid Execution ID"),
   })
 });
+
+export const updateStepSchema = z.object({
+  params: z.object({
+    id: z.string().uuid("Invalid Step ID"),
+  }),
+  body: z.object({
+    status: z.enum(['PASS', 'FAIL', 'BLOCKED', 'SKIPPED']),
+    actualResult: z.string().optional(),
+    notes: z.string().optional(),
+  })
+});

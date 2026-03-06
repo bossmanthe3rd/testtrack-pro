@@ -13,7 +13,7 @@ export const createTestCaseSchema = z.object({
     priority: z.enum(['P1', 'P2', 'P3', 'P4']),
     severity: z.enum(['BLOCKER', 'CRITICAL', 'MAJOR', 'MINOR', 'TRIVIAL']),
     type: z.enum(['FUNCTIONAL', 'REGRESSION', 'SMOKE', 'INTEGRATION', 'UAT', 'PERFORMANCE', 'SECURITY', 'USABILITY']),
-    status: z.enum(['DRAFT', 'REVIEW', 'APPROVED', 'ARCHIVED']).default('DRAFT'),
+    status: z.enum(['DRAFT', 'READY_FOR_REVIEW', 'APPROVED', 'RETIRED']).default('DRAFT'),
     preConditions: z.string().optional(),
     testDataRequirements: z.string().optional(),
     environmentRequirements: z.string().optional(),
@@ -35,7 +35,7 @@ export const listTestCaseSchema = z.object({
     
     // Optional filters. They must exactly match your Prisma Enums if provided.
     priority: z.preprocess((val) => (val === '' ? undefined : val), z.enum(['P1', 'P2', 'P3', 'P4']).optional()),
-    status: z.preprocess((val) => (val === '' ? undefined : val), z.enum(['DRAFT', 'REVIEW', 'APPROVED', 'ARCHIVED']).optional()),
+    status: z.preprocess((val) => (val === '' ? undefined : val), z.enum(['DRAFT', 'READY_FOR_REVIEW', 'APPROVED', 'RETIRED']).optional()),
     module: z.preprocess((val) => (val === '' ? undefined : val), z.string().optional()),
     
     // The search string for our global search feature
@@ -56,7 +56,7 @@ export const editTestCaseSchema = z.object({
     priority: z.enum(["P1", "P2", "P3", "P4"]).optional(),
     severity: z.enum(["BLOCKER", "CRITICAL", "MAJOR", "MINOR", "TRIVIAL"]).optional(),
     type: z.string().optional(),
-    status: z.enum(["DRAFT", "REVIEW", "APPROVED", "ARCHIVED"]).optional(),
+    status: z.enum(["DRAFT", "READY_FOR_REVIEW", "APPROVED", "RETIRED"]).optional(),
     preConditions: z.string().optional(),
     testDataRequirements: z.string().optional(),
     environmentRequirements: z.string().optional(),
@@ -71,3 +71,9 @@ export const editTestCaseSchema = z.object({
     ).min(1, "At least one step is required"),
   })
 });
+
+export const updateTestCaseStatusSchema = z.object({
+  status: z.enum(['DRAFT', 'READY_FOR_REVIEW', 'APPROVED', 'RETIRED'])
+});
+
+export type UpdateTestCaseStatusInput = z.infer<typeof updateTestCaseStatusSchema>;

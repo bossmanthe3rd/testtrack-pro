@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { startSuiteRun, getSuiteReport } from '../services/testSuiteApi';
 import { api } from '../services/api';
-import { Play, Pause, Clock } from 'lucide-react';
+import { Play, Pause, Clock, AlertCircle } from 'lucide-react';
+import CreateBugModal from '../components/CreateBugModal';
 
 interface TestCaseRef {
   id: string;
+  steps?: TestStep[];
 }
 
 interface TestStep {
@@ -16,6 +18,7 @@ interface TestStep {
 }
 
 interface TestCaseDetails {
+  id: string;
   title: string;
   testCaseId: string;
   description?: string;
@@ -46,7 +49,7 @@ export default function SuiteRunner() {
   
   const [currentTestCaseDetails, setCurrentTestCaseDetails] = useState<TestCaseDetails | null>(null);
   const [currentExecutionId, setCurrentExecutionId] = useState<string | null>(null);
-  const [stepResults, setStepResults] = useState<Record<number, StepResult>>({});
+  const [stepResults, setStepResults] = useState<Record<string, StepResult>>({});
   
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -57,6 +60,22 @@ export default function SuiteRunner() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [totalStepsInSuite, setTotalStepsInSuite] = useState(0);
+
+
+  // BUG MODAL STATE
+  const [isBugModalOpen, setIsBugModalOpen] = useState(false);
+  const [bugContext, setBugContext] = useState<{
+    stepNumber: number;
+    expected: string;
+    actual: string;
+    stepsToReproduce: string;
+    executionStepId?: string;
+  } | null>(null);
+
+  // STEP MAPPING: stepNumber -> executionStepId
+  const [stepMapping, setStepMapping] = useState<Record<number, string>>({});
+
   useEffect(() => {
     const initializeRun = async () => {
       try {
@@ -64,6 +83,11 @@ export default function SuiteRunner() {
         const result = await startSuiteRun(suiteId);
         setTestRunId(result.testRunId);
         setTestCases(result.testCases);
+        
+        // Calculate total steps for granular progress
+        const totalSteps = result.testCases.reduce((acc: number, tc: TestCaseRef) => acc + (tc.steps?.length || 0), 0);
+        setTotalStepsInSuite(totalSteps);
+
         setLoading(false);
       } catch (err: unknown) {
         const e = err as { response?: { data?: { message?: string } } };
@@ -90,7 +114,16 @@ export default function SuiteRunner() {
           testRunId: testRunId
         });
         
-        setCurrentExecutionId(execResponse.data.data?.id || execResponse.data.id);
+        setCurrentExecutionId(execResponse.data.id || execResponse.data.data?.id);
+        
+        // Map execution steps for immediate updates
+        const execSteps = execResponse.data.steps || execResponse.data.data?.steps || [];
+        const mapping: Record<number, string> = {};
+        execSteps.forEach((s: { stepNumber: number; id: string }) => {
+          mapping[s.stepNumber] = s.id;
+        });
+        setStepMapping(mapping);
+
         setStepResults({}); 
         
         // NEW: Reset and start the timer for the new test case
@@ -134,11 +167,37 @@ export default function SuiteRunner() {
     fetchReport();
   }, [isFinished, testRunId]);
 
-  const handleStepResult = (stepNumber: number, status: string, actualResult: string) => {
-    setStepResults(prev => ({
-      ...prev,
-      [stepNumber]: { status, actualResult }
-    }));
+  const handleStepUpdate = async (stepNumber: number, stepId: string, status: string, actualResult: string) => {
+    const executionStepId = stepMapping[stepNumber];
+    if (!executionStepId) return;
+
+    try {
+      // Immediate persistence
+      await api.patch(`/api/executions/steps/${executionStepId}`, {
+        status,
+        actualResult
+      });
+
+      // Update local state for UI feedback
+      setStepResults(prev => ({
+        ...prev,
+        [stepId]: { status, actualResult }
+      }));
+    } catch (err) {
+      console.error("Failed to update step", err);
+    }
+  };
+
+  const openBugModal = (step: TestStep) => {
+    const result = stepResults[step.id] || { status: 'FAIL', actualResult: '' };
+    setBugContext({
+      stepNumber: step.stepNumber,
+      expected: step.expectedResult,
+      actual: result.actualResult,
+      stepsToReproduce: `1. ${step.action}`,
+      executionStepId: stepMapping[step.stepNumber]
+    });
+    setIsBugModalOpen(true);
   };
 
   const completeCurrentTestAndAdvance = async () => {
@@ -147,16 +206,9 @@ export default function SuiteRunner() {
     try {
       setLoading(true);
       
-      const stepPromises = (currentTestCaseDetails.steps ?? []).map((step: TestStep) => {
-        const result = stepResults[step.stepNumber] || { status: 'SKIPPED', actualResult: 'Not executed' };
-        return api.post(`/api/executions/${currentExecutionId}/steps`, {
-          stepNumber: step.stepNumber,
-          status: result.status,
-          actualResult: result.actualResult,
-          notes: ''
-        });
-      });
-      await Promise.all(stepPromises);
+      // Note: We don't need to save steps here anymore as they are updated immediately
+      // But we call complete to aggregate overall status and duration
+
 
       // Note: For a true enterprise app, you would also pass `elapsedSeconds` 
       // in this body so the backend uses the paused time instead of raw timestamps!
@@ -251,7 +303,14 @@ export default function SuiteRunner() {
 
   if (currentTestCaseDetails) {
     const isLastTest = currentIndex === testCases.length - 1;
-    const progressPercentage = (currentIndex / testCases.length) * 100;
+    
+    // Calculate completed steps overall
+    const stepsInPreviousTests = testCases.slice(0, currentIndex).reduce((acc, tc) => acc + (tc.steps?.length || 0), 0);
+    const stepsInCurrentTest = Object.keys(stepResults).length;
+    const totalCompletedSteps = stepsInPreviousTests + stepsInCurrentTest;
+    
+    const progressPercentage = totalStepsInSuite > 0 ? (totalCompletedSteps / totalStepsInSuite) * 100 : 0;
+
 
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -347,31 +406,51 @@ export default function SuiteRunner() {
                         className="w-full bg-slate-950 border border-slate-700 text-slate-200 placeholder:text-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
                         rows={2}
                         placeholder="What actually happened?"
-                        value={stepResults[step.stepNumber]?.actualResult || ''}
-                        onChange={(e) => handleStepResult(step.stepNumber, stepResults[step.stepNumber]?.status || 'PASS', e.target.value)}
+                        value={stepResults[step.id]?.actualResult || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setStepResults(prev => ({
+                            ...prev,
+                            [step.id]: { ...(prev[step.id] || { status: 'BLOCKED' }), actualResult: val }
+                          }));
+                        }}
+                        onBlur={(e) => {
+                          const result = stepResults[step.id] || { status: 'BLOCKED', actualResult: '' };
+                          handleStepUpdate(step.stepNumber, step.id, result.status, e.target.value);
+                        }}
                       />
                     </div>
 
                     {/* PASS / FAIL / BLOCKED */}
                     <div className="flex gap-3 flex-wrap">
                       <button
-                        onClick={() => handleStepResult(step.stepNumber, 'PASS', stepResults[step.stepNumber]?.actualResult || '')}
-                        className={`flex items-center gap-2 px-5 py-2.5 border rounded-xl font-bold text-sm transition-all ${stepResults[step.stepNumber]?.status === 'PASS' ? 'bg-green-500/25 text-green-300 border-green-400/60' : 'bg-green-500/10 text-green-400 border-green-500/30 hover:bg-green-500/20'}`}
+                        onClick={() => handleStepUpdate(step.stepNumber, step.id, 'PASS', stepResults[step.id]?.actualResult || '')}
+                        className={`flex items-center gap-2 px-5 py-2.5 border rounded-xl font-bold text-sm transition-all ${stepResults[step.id]?.status === 'PASS' ? 'bg-green-500/25 text-green-300 border-green-400/60' : 'bg-green-500/10 text-green-400 border-green-500/30 hover:bg-green-500/20'}`}
                       >
                         ✓ PASS
                       </button>
                       <button
-                        onClick={() => handleStepResult(step.stepNumber, 'FAIL', stepResults[step.stepNumber]?.actualResult || '')}
-                        className={`flex items-center gap-2 px-5 py-2.5 border rounded-xl font-bold text-sm transition-all ${stepResults[step.stepNumber]?.status === 'FAIL' ? 'bg-red-500/25 text-red-300 border-red-400/60' : 'bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20'}`}
+                        onClick={() => handleStepUpdate(step.stepNumber, step.id, 'FAIL', stepResults[step.id]?.actualResult || '')}
+                        className={`flex items-center gap-2 px-5 py-2.5 border rounded-xl font-bold text-sm transition-all ${stepResults[step.id]?.status === 'FAIL' ? 'bg-red-500/25 text-red-300 border-red-400/60' : 'bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20'}`}
                       >
                         ✕ FAIL
                       </button>
                       <button
-                        onClick={() => handleStepResult(step.stepNumber, 'BLOCKED', stepResults[step.stepNumber]?.actualResult || '')}
-                        className={`flex items-center gap-2 px-5 py-2.5 border rounded-xl font-bold text-sm transition-all ${stepResults[step.stepNumber]?.status === 'BLOCKED' ? 'bg-yellow-500/25 text-yellow-300 border-yellow-400/60' : 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/20'}`}
+                        onClick={() => handleStepUpdate(step.stepNumber, step.id, 'BLOCKED', stepResults[step.id]?.actualResult || '')}
+                        className={`flex items-center gap-2 px-5 py-2.5 border rounded-xl font-bold text-sm transition-all ${stepResults[step.id]?.status === 'BLOCKED' ? 'bg-yellow-500/25 text-yellow-300 border-yellow-400/60' : 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/20'}`}
                       >
                         ⏸ BLOCKED
                       </button>
+
+                      {stepResults[step.id]?.status === 'FAIL' && (
+                        <button
+                          onClick={() => openBugModal(step)}
+                          className="flex items-center gap-2 px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-red-900/20 ml-auto"
+                        >
+                          <AlertCircle className="h-4 w-4" />
+                          Create Bug
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -389,6 +468,21 @@ export default function SuiteRunner() {
               {loading ? 'Saving…' : isLastTest ? 'Finish Suite Execution 🏁' : 'Save & Next Test Case →'}
             </button>
           </div>
+
+          {/* ── Modal ── */}
+          {bugContext && (
+            <CreateBugModal
+              isOpen={isBugModalOpen}
+              onClose={() => setIsBugModalOpen(false)}
+              testCaseId={currentTestCaseDetails.id}
+              testCaseDisplayId={currentTestCaseDetails.testCaseId}
+              stepNumber={bugContext.stepNumber}
+              expectedBehavior={bugContext.expected}
+              actualBehavior={bugContext.actual}
+              stepsToReproduce={bugContext.stepsToReproduce}
+              executionStepId={bugContext.executionStepId}
+            />
+          )}
 
         </div>
       </div>

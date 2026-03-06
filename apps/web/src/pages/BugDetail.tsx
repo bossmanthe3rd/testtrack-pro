@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { getBugById, updateBugStatus } from '../services/bugApi';
 import type { Bug } from '../services/bugApi';
 import { useAuthStore } from '../features/auth/authStore';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-// 🟢 ADDED: FileText and ImageIcon for the attachment viewer
-import { ArrowLeft, GitCommit, CheckCircle2, RotateCcw, AlertTriangle, FileText, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, GitCommit, CheckCircle2, RotateCcw, AlertTriangle, FileText, Image as ImageIcon, Clock } from 'lucide-react';
 
-// ── Status badge ───────────────────────────────────────────────────────────────
 const StatusBadge = ({ status }: { status: string }) => {
   const map: Record<string, string> = {
     NEW:         'bg-blue-500/15 text-blue-300 border-blue-500/30',
@@ -34,12 +33,10 @@ export default function BugDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  // ── Auth / role (UNCHANGED) ────────────────────────────────────────────────
   const { user } = useAuthStore();
   const isDeveloper = user?.role === 'DEVELOPER';
   const isTester = user?.role === 'TESTER';
 
-  // ── State (UNCHANGED) ─────────────────────────────────────────────────────
   const [bug, setBug] = useState<Bug | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -47,7 +44,6 @@ export default function BugDetail() {
   const [commitHash, setCommitHash] = useState('');
   const [reopenNotes, setReopenNotes] = useState('');
 
-  // ── Data fetch (UNCHANGED) ─────────────────────────────────────────────────
   useEffect(() => {
     const fetchBugData = async () => {
       if (!id) return;
@@ -64,12 +60,14 @@ export default function BugDetail() {
     fetchBugData();
   }, [id]);
 
-  // ── handleStatusChange (UNCHANGED) ─────────────────────────────────────────
   const handleStatusChange = async (newStatus: Bug['status']) => {
     if (!bug || !id) return;
 
-    if (newStatus === 'FIXED' && !fixNotes.trim()) {
-      setActionError("Fix notes are required when marking a bug as fixed.");
+    // Strict frontend validation before hitting the API
+    const requiresNotes = ['FIXED', 'WONT_FIX', 'DUPLICATE'].includes(newStatus);
+    
+    if (requiresNotes && !fixNotes.trim()) {
+      setActionError(`Notes/Reason required when marking a bug as ${newStatus.replace('_', ' ').toLowerCase()}.`);
       return;
     }
     if (newStatus === 'REOPENED' && !reopenNotes.trim()) {
@@ -79,18 +77,21 @@ export default function BugDetail() {
 
     try {
       setActionError(null);
-      const payloadNotes = newStatus === 'FIXED' ? fixNotes : newStatus === 'REOPENED' ? reopenNotes : undefined;
+      const payloadNotes = requiresNotes ? fixNotes : newStatus === 'REOPENED' ? reopenNotes : undefined;
       const updatedBug = await updateBugStatus(id, {
         status: newStatus,
         fixNotes: payloadNotes,
         commitHash: newStatus === 'FIXED' ? commitHash : undefined,
       });
       setBug(updatedBug);
-      if (newStatus === 'FIXED') { setFixNotes(''); setCommitHash(''); }
+      if (requiresNotes) { setFixNotes(''); setCommitHash(''); }
       if (newStatus === 'REOPENED') { setReopenNotes(''); }
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { message?: string } } };
-      setActionError(e.response?.data?.message || 'Failed to update status.');
+      let errorMessage = 'Failed to update status.';
+      if (axios.isAxiosError(err)) {
+        errorMessage = err.response?.data?.message || errorMessage;
+      }
+      setActionError(errorMessage);
     }
   };
 
@@ -106,8 +107,6 @@ export default function BugDetail() {
 
   return (
     <div className="max-w-7xl mx-auto">
-
-      {/* ── Back nav ── */}
       <button
         onClick={() => navigate(-1)}
         className="flex items-center gap-1.5 text-slate-400 hover:text-indigo-400 text-sm font-medium mb-6 transition-colors"
@@ -115,7 +114,6 @@ export default function BugDetail() {
         <ArrowLeft className="h-4 w-4" /> Back to List
       </button>
 
-      {/* ── Page Title ── */}
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-2">
           <span className="text-sm font-mono text-indigo-400 font-bold">{bug.bugId}</span>
@@ -124,28 +122,21 @@ export default function BugDetail() {
         <h1 className="text-3xl font-bold text-white leading-tight">{bug.title}</h1>
       </div>
 
-      {/* ── Two-column layout ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-        {/* ── LEFT: Bug Content (2/3 width) ── */}
+        {/* LEFT COLUMN: Bug Content */}
         <div className="lg:col-span-2 space-y-5">
-
-          {/* Description & Steps */}
           <Card className="bg-slate-900/60 border-slate-800">
             <CardHeader>
               <CardTitle className="text-base font-semibold text-slate-200">Description</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
               <p className="text-slate-300 whitespace-pre-wrap leading-relaxed text-sm">{bug.description}</p>
-
               <div>
                 <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 pb-2 border-b border-slate-800">
                   Steps to Reproduce
                 </h4>
                 <p className="text-slate-300 whitespace-pre-wrap leading-relaxed text-sm">{bug.stepsToReproduce}</p>
               </div>
-
-              {/* Expected vs Actual */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="bg-green-500/5 border border-green-500/20 rounded-xl p-4">
                   <h4 className="text-xs font-bold text-green-400 uppercase tracking-wider mb-2">Expected Behavior</h4>
@@ -159,7 +150,6 @@ export default function BugDetail() {
             </CardContent>
           </Card>
 
-          {/* 🟢 NEW: Attachments Gallery Card */}
           {bug.attachments && bug.attachments.length > 0 && (
             <Card className="bg-slate-900/60 border-slate-800">
               <CardHeader>
@@ -170,20 +160,10 @@ export default function BugDetail() {
                   {bug.attachments.map((url: string, index: number) => {
                     const isImage = url.match(/\.(jpeg|jpg|gif|png|webp)$/i) != null;
                     return (
-                      <a 
-                        key={index}
-                        href={url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="group relative flex flex-col items-center justify-center aspect-video rounded-xl overflow-hidden border border-slate-700 bg-slate-950 hover:border-indigo-500 transition-all shadow-sm"
-                      >
+                      <a key={index} href={url} target="_blank" rel="noopener noreferrer" className="group relative flex flex-col items-center justify-center aspect-video rounded-xl overflow-hidden border border-slate-700 bg-slate-950 hover:border-indigo-500 transition-all shadow-sm">
                         {isImage ? (
                           <>
-                            <img 
-                              src={url} 
-                              alt={`Attachment ${index + 1}`} 
-                              className="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-opacity"
-                            />
+                            <img src={url} alt={`Attachment ${index + 1}`} className="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-opacity" />
                             <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-3">
                               <span className="text-xs font-medium text-white bg-slate-900/80 px-2 py-1 rounded-md backdrop-blur-sm border border-slate-700 flex items-center gap-1.5">
                                 <ImageIcon className="w-3 h-3" /> View Image
@@ -204,7 +184,6 @@ export default function BugDetail() {
             </Card>
           )}
 
-          {/* Fix Notes (if developer marked fixed) */}
           {bug.fixNotes && (
             <Card className="bg-green-500/5 border-green-500/20">
               <CardHeader>
@@ -214,15 +193,18 @@ export default function BugDetail() {
               </CardHeader>
               <CardContent>
                 <p className="text-green-200 text-sm">{bug.fixNotes}</p>
+                {bug.commitHash && (
+                  <div className="mt-3 flex items-center gap-2 text-xs font-mono text-slate-400">
+                    <GitCommit className="h-3.5 w-3.5" /> Commit: {bug.commitHash}
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
         </div>
 
-        {/* ── RIGHT: Metadata + Workflow Sidebar (1/3 width) ── */}
+        {/* RIGHT COLUMN: Metadata & Actions */}
         <div className="space-y-5">
-
-          {/* Metadata card */}
           <Card className="bg-slate-900/60 border-slate-800">
             <CardHeader>
               <CardTitle className="text-base font-semibold text-slate-200">Details</CardTitle>
@@ -243,7 +225,6 @@ export default function BugDetail() {
             </CardContent>
           </Card>
 
-          {/* Workflow Actions card */}
           <Card className="bg-slate-900/60 border-slate-800">
             <CardHeader>
               <CardTitle className="text-base font-semibold text-slate-200">Workflow Actions</CardTitle>
@@ -256,7 +237,7 @@ export default function BugDetail() {
                 </div>
               )}
 
-              {/* ── DEVELOPER ACTIONS (UNCHANGED LOGIC) ── */}
+              {/* DEVELOPER ACTIONS */}
               {isDeveloper && (
                 <div className="space-y-3">
                   {bug.status === 'NEW' && (
@@ -264,12 +245,20 @@ export default function BugDetail() {
                       <button onClick={() => handleStatusChange('OPEN')} className="w-full py-2 rounded-lg bg-blue-500/15 hover:bg-blue-500/25 text-blue-300 border border-blue-500/30 text-sm font-semibold transition-colors">
                         Accept Bug
                       </button>
-                      <button onClick={() => handleStatusChange('DUPLICATE')} className="w-full py-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-400 border border-slate-600 text-sm font-semibold transition-colors">
-                        Mark Duplicate
-                      </button>
-                      <button onClick={() => handleStatusChange('WONT_FIX')} className="w-full py-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-400 border border-slate-600 text-sm font-semibold transition-colors">
-                        Won't Fix
-                      </button>
+                      <div className="pt-3 border-t border-slate-800 space-y-3">
+                        <div>
+                          <label className={labelCls}>Reason (Required for Rejection)</label>
+                          <textarea className={inputCls} rows={2} placeholder="Why is this duplicate/won't fix?" value={fixNotes} onChange={(e) => setFixNotes(e.target.value)} />
+                        </div>
+                        <div className="flex gap-2">
+                          <button onClick={() => handleStatusChange('DUPLICATE')} className="w-full py-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-400 border border-slate-600 text-sm font-semibold transition-colors">
+                            Mark Duplicate
+                          </button>
+                          <button onClick={() => handleStatusChange('WONT_FIX')} className="w-full py-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-400 border border-slate-600 text-sm font-semibold transition-colors">
+                            Won't Fix
+                          </button>
+                        </div>
+                      </div>
                     </>
                   )}
                   {bug.status === 'OPEN' && (
@@ -277,7 +266,12 @@ export default function BugDetail() {
                       Start Work (In Progress)
                     </button>
                   )}
-                  {(bug.status === 'IN_PROGRESS' || bug.status === 'REOPENED') && (
+                  {bug.status === 'REOPENED' && (
+                    <button onClick={() => handleStatusChange('IN_PROGRESS')} className="w-full py-2 rounded-lg bg-yellow-500/15 hover:bg-yellow-500/25 text-yellow-300 border border-yellow-500/30 text-sm font-semibold transition-colors">
+                      Start Rework (In Progress)
+                    </button>
+                  )}
+                  {bug.status === 'IN_PROGRESS' && (
                     <div className="space-y-3">
                       <div>
                         <label className={labelCls}>Fix Notes (Required)</label>
@@ -295,24 +289,23 @@ export default function BugDetail() {
                     </div>
                   )}
                   {bug.status === 'FIXED' && (
-                    <div className="flex items-center gap-2 text-green-400 text-sm font-medium p-3 bg-green-500/10 rounded-lg border border-green-500/20">
-                      <CheckCircle2 className="h-4 w-4 shrink-0" /> Awaiting QA Verification
+                    <div className="flex items-center justify-center gap-2 text-green-400 text-sm font-medium p-3 bg-green-500/10 rounded-lg border border-green-500/20">
+                      <Clock className="h-4 w-4 shrink-0" /> Awaiting QA Verification
                     </div>
                   )}
                 </div>
               )}
 
-              {/* ── TESTER ACTIONS (UNCHANGED LOGIC) ── */}
+              {/* TESTER ACTIONS */}
               {isTester && (
                 <div className="space-y-3">
+                  {['NEW', 'OPEN', 'IN_PROGRESS', 'REOPENED'].includes(bug.status) && (
+                    <div className="flex items-center justify-center gap-2 text-indigo-400 text-sm font-medium p-3 bg-indigo-500/10 rounded-lg border border-indigo-500/20">
+                      <Clock className="h-4 w-4 shrink-0" /> Awaiting Developer Action
+                    </div>
+                  )}
                   {bug.status === 'FIXED' && (
                     <>
-                      {bug.fixNotes && (
-                        <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg text-xs text-green-300 mb-2">
-                          <strong className="block mb-1 text-green-400">Dev Fix Notes:</strong>
-                          {bug.fixNotes}
-                        </div>
-                      )}
                       <button onClick={() => handleStatusChange('VERIFIED')} className="w-full py-2 rounded-lg bg-green-500/15 hover:bg-green-500/25 text-green-300 border border-green-500/30 text-sm font-bold transition-colors">
                         Verify Fix ✓
                       </button>
@@ -334,10 +327,6 @@ export default function BugDetail() {
                     <p className="text-slate-500 text-sm text-center py-2">This bug has been closed.</p>
                   )}
                 </div>
-              )}
-
-              {!isDeveloper && !isTester && (
-                <p className="text-slate-500 text-sm">No workflow actions available for your role.</p>
               )}
             </CardContent>
           </Card>

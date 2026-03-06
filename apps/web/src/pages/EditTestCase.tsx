@@ -16,7 +16,7 @@ const editFormSchema = z.object({
   priority: z.enum(["P1", "P2", "P3", "P4"]),
   severity: z.enum(["BLOCKER", "CRITICAL", "MAJOR", "MINOR", "TRIVIAL"]),
   type: z.string().min(1, "Type is required"),
-  status: z.enum(["DRAFT", "REVIEW", "APPROVED", "ARCHIVED"]),
+  status: z.enum(["DRAFT", "READY_FOR_REVIEW", "APPROVED", "RETIRED"]),
   changeSummary: z.string().min(5, "Please explain what you changed (min 5 chars)"),
   steps: z.array(
     z.object({
@@ -199,9 +199,9 @@ export default function EditTestCase() {
                 <label className={labelCls}>Status</label>
                 <select {...register("status")} className={selectCls}>
                   <option value="DRAFT">Draft</option>
-                  <option value="REVIEW">Review</option>
+                  <option value="READY_FOR_REVIEW">Ready for Review</option>
                   <option value="APPROVED">Approved</option>
-                  <option value="ARCHIVED">Archived</option>
+                  <option value="RETIRED">Retired</option>
                 </select>
               </div>
               <div className="col-span-2">

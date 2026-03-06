@@ -32,9 +32,9 @@ enum Severity {
 
 enum TestCaseStatus {
   DRAFT
-  REVIEW
+  READY_FOR_REVIEW
   APPROVED
-  ARCHIVED
+  RETIRED
 }
 
 enum ExecutionStatus {
