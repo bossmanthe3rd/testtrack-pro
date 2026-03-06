@@ -1,6 +1,5 @@
 import api from '../features/auth/api';
 
-// Assuming your backend runs on port 3000 locally
 const API_URL = '/api';
 
 // 1. Upload Attachment
@@ -134,4 +133,10 @@ export const updateBugStatus = async (id: string, payload: UpdateBugStatusPayloa
 export const requestRetest = async (id: string, fixNotes: string, commitHash?: string) => {
   const response = await api.post(`${API_URL}/bugs/${id}/request-retest`, { fixNotes, commitHash });
   return response.data.data as Bug;
+};
+
+// 12. Get list of developers (for assignment dropdowns)
+export const getDevelopersList = async (): Promise<UserRef[]> => {
+  const response = await api.get(`${API_URL}/bugs/developers/list`);
+  return response.data.data as UserRef[];
 };

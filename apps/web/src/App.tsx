@@ -15,6 +15,7 @@ import TestCaseList from './pages/TestCaseList';
 import CreateTestCase from './pages/CreateTestCase';
 import EditTestCase from './pages/EditTestCase';
 import ExecuteTestCase from './pages/ExecuteTestCase';
+import TestCaseDetail from './pages/TestCaseDetail';
 
 // Test Suite Pages
 import TestSuites from './pages/TestSuites';
@@ -69,6 +70,7 @@ function App() {
           <Route element={<ProtectedRoute allowedRoles={["TESTER", "DEVELOPER", "ADMIN"]} />}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/test-cases" element={<TestCaseList />} />
+            {/* Moving param route down to avoid conflict with /create */}
             <Route path="/bugs" element={<BugList />} />
             <Route path="/bugs/:id" element={<BugDetail />} />
             <Route path="/projects" element={<ProjectList />} />
@@ -84,6 +86,7 @@ function App() {
             <Route path="/test-cases/create" element={<CreateTestCase />} />
             <Route path="/test-cases/:id/edit" element={<EditTestCase />} />
             <Route path="/test-cases/:id/execute" element={<ExecuteTestCase />} />
+            <Route path="/test-cases/:id" element={<TestCaseDetail />} />
             
             <Route path="/test-suites" element={<TestSuites />} />
             <Route path="/test-suites/:id" element={<ManageTestSuite />} />

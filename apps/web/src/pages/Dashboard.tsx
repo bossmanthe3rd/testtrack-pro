@@ -46,8 +46,7 @@ export const Dashboard = () => {
   ] : [];
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      <div className="max-w-7xl mx-auto p-8">
+    <div className="max-w-7xl mx-auto">
 
         {/* ── PAGE HEADER ── */}
         <div className="mb-10">
@@ -200,6 +199,7 @@ export const Dashboard = () => {
           </>
         ) : null}
 
+
         {/* ── QUICK ACTIONS ── */}
         <Card className="bg-slate-900/60 border-slate-800">
           <CardContent className="pt-6">
@@ -242,7 +242,6 @@ export const Dashboard = () => {
           </CardContent>
         </Card>
 
-      </div>
     </div>
   );
 };

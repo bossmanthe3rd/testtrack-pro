@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { TestCase, PaginationMeta } from '../types/testCase';
 import { getTestCases, cloneTestCase, deleteTestCase, type GetTestCasesFilters } from '../services/testCaseApi';
@@ -8,10 +8,10 @@ import { Card, CardContent } from '../components/ui/card';
 
 const StatusBadge = ({ status }: { status: string }) => {
   const styles: Record<string, string> = {
-    APPROVED: 'bg-green-500/15 text-green-300 border border-green-500/30',
-    REVIEW:   'bg-purple-500/15 text-purple-300 border border-purple-500/30',
-    DRAFT:    'bg-slate-500/15 text-slate-400 border border-slate-500/30',
-    ARCHIVED: 'bg-orange-500/15 text-orange-300 border border-orange-500/30',
+    APPROVED:         'bg-green-500/15 text-green-300 border border-green-500/30',
+    READY_FOR_REVIEW: 'bg-yellow-500/15 text-yellow-300 border border-yellow-500/30',
+    DRAFT:            'bg-slate-500/15 text-slate-400 border border-slate-500/30',
+    RETIRED:          'bg-red-500/15 text-red-300 border border-red-500/30',
   };
   return (
     <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${styles[status] ?? styles.DRAFT}`}>
@@ -91,18 +91,31 @@ export const TestCaseList = () => {
 
   // Handler for cloning a test case
   const handleClone = async (id: string) => {
-    if (!window.confirm("Are you sure you want to clone this test case?")) return;
+  // 1. Guard Clause: Ensure a valid string ID was actually passed
+  if (!id || typeof id !== 'string') {
+    console.error("Clone failed: Invalid ID provided. Make sure you are passing testCase.id");
+    return;
+  }
 
-    try {
-      const response = await cloneTestCase(id);
-      const newTestCaseId = response.data.id;
-      alert("Cloned successfully! Redirecting to edit page...");
-      navigate(`/test-cases/${newTestCaseId}/edit`);
-    } catch (error) {
-      console.error("Failed to clone:", error);
-      alert("Failed to clone test case. Check console for details.");
+  if (!window.confirm("Are you sure you want to clone this test case?")) return;
+
+  try {
+    const response = await cloneTestCase(id);
+    
+    // The service already unwraps the API envelope, so `response` is a plain TestCase.
+    const newTestCaseId = response?.id;
+
+    if (!newTestCaseId) {
+       throw new Error("Could not find the new test case ID in the server response.");
     }
-  };
+
+    alert("Cloned successfully! Redirecting to edit page...");
+    navigate(`/test-cases/${newTestCaseId}/edit`);
+  } catch (error) {
+    console.error("Failed to clone:", error);
+    alert("Failed to clone test case. Check console for details.");
+  }
+};
 
   // NEW: Handler for deleting a test case
   const handleDelete = async (id: string) => {
@@ -167,9 +180,9 @@ export const TestCaseList = () => {
               <select className={selectClass} value={filters.status} onChange={(e) => handleFilterChange('status', e.target.value)}>
                 <option value="">All Statuses</option>
                 <option value="DRAFT">Draft</option>
-                <option value="REVIEW">Review</option>
+                <option value="READY_FOR_REVIEW">Ready for Review</option>
                 <option value="APPROVED">Approved</option>
-                <option value="ARCHIVED">Archived</option>
+                <option value="RETIRED">Retired</option>
               </select>
             </div>
           </div>
@@ -227,10 +240,16 @@ export const TestCaseList = () => {
                     <td className="py-4 px-6 text-right">
                       <div className="flex gap-2 justify-end">
                         <button
+                          onClick={() => navigate(`/test-cases/${tc.id}`)}
+                          className="bg-slate-700/50 text-slate-300 hover:bg-slate-700 border border-slate-600 px-3 py-1 rounded-md text-xs font-semibold transition-colors"
+                        >
+                          View
+                        </button>
+                        <button
                           onClick={() => navigate(`/test-cases/${tc.id}/edit`)}
                           className="bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/20 border border-indigo-500/30 px-3 py-1 rounded-md text-xs font-semibold transition-colors"
                         >
-                          Edit / Execute
+                          Edit
                         </button>
                         <button
                           onClick={() => handleClone(tc.id)}

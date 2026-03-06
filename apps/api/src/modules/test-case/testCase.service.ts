@@ -1,7 +1,6 @@
-import { string } from 'zod';
+import { prisma } from '../../config/prisma';
 import { CreateTestCaseInput } from './testCase.validation';
-import { PrismaClient, Prisma } from '@prisma/client';
-const prisma = new PrismaClient();
+import { Prisma, TestCaseStatus } from '@prisma/client';
 // Helper to generate IDs like TC-2026-00001
 async function generateTestCaseId(): Promise<string> {
     const currentYear = new Date().getFullYear();
@@ -24,7 +23,7 @@ export async function createTestCase(userId: string, data: CreateTestCaseInput) 
             priority: data.priority,
             severity: data.severity,
             type: data.type,
-            status: data.status,
+            status: data.status as TestCaseStatus,
             preConditions: data.preConditions,
             testDataRequirements: data.testDataRequirements,
             environmentRequirements: data.environmentRequirements,
@@ -143,20 +142,28 @@ export const getTestCaseById = async (id: string) => {
       id: id, 
       deletedAt: null // Ensure we don't fetch soft-deleted cases
     },
-    // Include the steps so the user can see what they are editing
+    // Include the steps and creator so the user can see full details
     include: { 
       steps: { 
         orderBy: { stepNumber: 'asc' } 
-      } 
+      },
+      createdBy: {
+        select: { name: true }
+      }
     }
   });
 };
 
 // 2. The update logic using a Database Transaction
-export const updateTestCase = async (id: string, userId: string, updateData: any) => {
+export const updateTestCase = async (id: string, userId: string, userRole: string, updateData: any) => {
   // We extract 'steps' and 'changeSummary' from the incoming data, 
   // keeping the rest of the details in 'caseDetails'
   const { steps, changeSummary, ...caseDetails } = updateData;
+
+  // LOGIC RULE: Only allow users with the ADMIN role to move a status to APPROVED.
+  if (caseDetails.status === 'APPROVED' && userRole !== 'ADMIN') {
+    throw new Error("Only an ADMIN can approve a test case.");
+  }
 
   // $transaction ensures all operations inside succeed, or NONE of them do.
   return await prisma.$transaction(async (tx) => {
@@ -203,6 +210,21 @@ export const updateTestCase = async (id: string, userId: string, updateData: any
 
     // Return the updated case back to the controller
     return updatedCase;
+  });
+};
+
+export const updateTestCaseStatus = async (id: string, userId: string, userRole: string, status: string) => {
+  // LOGIC RULE: Only allow users with the ADMIN role to move a status to APPROVED.
+  if (status === 'APPROVED' && userRole !== 'ADMIN') {
+    throw new Error("Only an ADMIN can approve a test case.");
+  }
+
+  return await prisma.testCase.update({
+    where: { id },
+    data: {
+      status: status as any,
+      updatedAt: new Date(),
+    }
   });
 };
 export const cloneTestCase = async (originalId: string, userId: string) => {

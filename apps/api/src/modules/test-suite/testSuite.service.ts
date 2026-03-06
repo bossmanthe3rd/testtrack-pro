@@ -43,7 +43,9 @@ export const testSuiteService = {
       include: {
         testCases: { 
           include: {
-            testCase: true 
+            testCase: {
+              include: { steps: true }
+            } 
           },
           orderBy: { order: 'asc' } // Ensure sequential order is preserved
         }

@@ -8,6 +8,7 @@ import { Card, CardContent } from '../components/ui/card';
 import { Clock, CheckCircle2, XCircle, AlertTriangle, SkipForward, Bug, ChevronRight, Play, Pause } from 'lucide-react'; // 🟢 Added Play/Pause
 
 interface TestStep {
+  id: string; // The database UUID
   stepNumber: number;
   action: string;
   expectedResult: string;
@@ -16,6 +17,7 @@ interface TestStep {
 interface TestCaseDetails {
   title: string;
   testCaseId: string;
+  description?: string;
   steps?: TestStep[];
 }
 
@@ -31,8 +33,10 @@ export default function ExecuteTestCase() {
   const [isRunning, setIsRunning] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   
-  const [actualResult, setActualResult] = useState('');
-  const [notes, setNotes] = useState('');
+  // Per-step maps so each step has its own independent actual result and notes
+  // Using step.id (UUID) is safer than stepNumber to prevent collisions
+  const [actualResults, setActualResults] = useState<Record<string, string>>({});
+  const [stepNotes, setStepNotes] = useState<Record<string, string>>({});
   const [isBugModalOpen, setIsBugModalOpen] = useState(false);
   const [failedStepData, setFailedStepData] = useState<{
     stepNumber: number;
@@ -71,13 +75,14 @@ export default function ExecuteTestCase() {
     return () => clearInterval(intervalId);
   }, [isRunning, isPaused]);
 
-  const handleStepSubmit = async (stepNumber: number, status: 'PASS' | 'FAIL' | 'BLOCKED' | 'SKIPPED') => {
+  const handleStepSubmit = async (stepId: string, stepNumber: number, status: 'PASS' | 'FAIL' | 'BLOCKED' | 'SKIPPED') => {
     if (!executionId) return;
     try {
-      await executionApi.saveStepResult(executionId, stepNumber, status, actualResult, notes);
+      await executionApi.saveStepResult(executionId, stepNumber, status, actualResults[stepId] ?? '', stepNotes[stepId] ?? '');
       alert(`Step ${stepNumber} marked as ${status}!`);
-      setActualResult('');
-      setNotes('');
+      // Clear only this step's fields after submission
+      setActualResults(prev => { const next = { ...prev }; delete next[stepId]; return next; });
+      setStepNotes(prev => { const next = { ...prev }; delete next[stepId]; return next; });
     } catch (error) {
       console.error("Failed to save step:", error);
       alert("Failed to save step. Please try again.");
@@ -205,8 +210,8 @@ export default function ExecuteTestCase() {
                   className="w-full bg-slate-950 border border-slate-700 text-slate-200 placeholder:text-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
                   rows={2}
                   placeholder="What actually happened?"
-                  value={actualResult}
-                  onChange={(e) => setActualResult(e.target.value)}
+                  value={actualResults[step.id] ?? ''}
+                  onChange={(e) => setActualResults(prev => ({ ...prev, [step.id]: e.target.value }))}
                 />
               </div>
 
@@ -214,7 +219,7 @@ export default function ExecuteTestCase() {
               <div className="flex flex-wrap gap-3 items-center">
                 {/* PASS */}
                 <button
-                  onClick={() => handleStepSubmit(step.stepNumber, 'PASS')}
+                  onClick={() => handleStepSubmit(step.id, step.stepNumber, 'PASS')}
                   className="flex items-center gap-2 px-5 py-2.5 bg-green-500/15 hover:bg-green-500/25 text-green-300 border border-green-500/40 hover:border-green-400/60 rounded-xl font-bold text-sm transition-all"
                 >
                   <CheckCircle2 className="h-4 w-4" /> PASS
@@ -222,7 +227,7 @@ export default function ExecuteTestCase() {
 
                 {/* FAIL */}
                 <button
-                  onClick={() => handleStepSubmit(step.stepNumber, 'FAIL')}
+                  onClick={() => handleStepSubmit(step.id, step.stepNumber, 'FAIL')}
                   className="flex items-center gap-2 px-5 py-2.5 bg-red-500/15 hover:bg-red-500/25 text-red-300 border border-red-500/40 hover:border-red-400/60 rounded-xl font-bold text-sm transition-all"
                 >
                   <XCircle className="h-4 w-4" /> FAIL
@@ -230,7 +235,7 @@ export default function ExecuteTestCase() {
 
                 {/* BLOCKED */}
                 <button
-                  onClick={() => handleStepSubmit(step.stepNumber, 'BLOCKED')}
+                  onClick={() => handleStepSubmit(step.id, step.stepNumber, 'BLOCKED')}
                   className="flex items-center gap-2 px-5 py-2.5 bg-yellow-500/15 hover:bg-yellow-500/25 text-yellow-300 border border-yellow-500/40 hover:border-yellow-400/60 rounded-xl font-bold text-sm transition-all"
                 >
                   <AlertTriangle className="h-4 w-4" /> BLOCKED
@@ -238,7 +243,7 @@ export default function ExecuteTestCase() {
 
                 {/* SKIP */}
                 <button
-                  onClick={() => handleStepSubmit(step.stepNumber, 'SKIPPED')}
+                  onClick={() => handleStepSubmit(step.id, step.stepNumber, 'SKIPPED')}
                   className="flex items-center gap-2 px-5 py-2.5 bg-slate-700/50 hover:bg-slate-700 text-slate-400 hover:text-slate-300 border border-slate-600 rounded-xl font-bold text-sm transition-all"
                 >
                   <SkipForward className="h-4 w-4" /> SKIP
@@ -249,14 +254,15 @@ export default function ExecuteTestCase() {
                   <button
                     type="button"
                     onClick={() => {
-                      if (!actualResult.trim()) {
+                      const stepActual = actualResults[step.id] ?? '';
+                      if (!stepActual.trim()) {
                         alert("Please enter an Actual Result before logging a bug.");
                         return;
                       }
                       setFailedStepData({
                         stepNumber: step.stepNumber,
                         expectedBehavior: step.expectedResult,
-                        actualBehavior: actualResult,
+                        actualBehavior: stepActual,
                         action: step.action
                       });
                       setIsBugModalOpen(true);

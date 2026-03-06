@@ -72,8 +72,7 @@ export default function DeveloperDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      <div className="max-w-7xl mx-auto p-8">
+    <div className="max-w-7xl mx-auto">
 
         {/* ── PAGE HEADER ── */}
         <div className="mb-10 flex items-start justify-between">
@@ -241,8 +240,6 @@ export default function DeveloperDashboard() {
             </div>
           </Card>
         )}
-
-      </div>
     </div>
   );
 }

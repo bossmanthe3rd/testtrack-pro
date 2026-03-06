@@ -8,9 +8,17 @@ export const createBug = async (data: any, reportedById: string) => {
   // Count how many bugs exist to figure out the next number
   const totalBugs = await prisma.bug.count();
   const nextNumber = totalBugs + 1;
-  
-  // padStart adds leading zeros so "1" becomes "00001"
   const generatedBugId = `BUG-${currentYear}-${String(nextNumber).padStart(5, '0')}`;
+
+  // NEW: Fetch projectId from test case if not provided
+  let projectId = data.projectId;
+  if (!projectId && data.linkedTestCaseId) {
+    const tc = await prisma.testCase.findUnique({
+      where: { id: data.linkedTestCaseId },
+      select: { projectId: true }
+    });
+    if (tc) projectId = tc.projectId;
+  }
 
   // 2. Save the bug to the database
   const newBug = await prisma.bug.create({
@@ -28,8 +36,9 @@ export const createBug = async (data: any, reportedById: string) => {
       assignedToId: data.assignedToId,
       linkedTestCaseId: data.linkedTestCaseId,
       executionStepId: data.executionStepId,
+      projectId: projectId, // Linked Project
       reportedById: reportedById,
-      status: "NEW", // All new bugs start as NEW per the requirements
+      status: "NEW",
       // 🟢 ADDED: Tell Prisma to actually save the attachments array!
       attachments: data.attachments || [],
     },

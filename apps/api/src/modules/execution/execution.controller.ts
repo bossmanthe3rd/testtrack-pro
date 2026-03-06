@@ -25,6 +25,18 @@ export const saveStep = async (req: Request, res: Response) => {
   }
 };
 
+export const updateStep = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { status, actualResult, notes } = req.body;
+
+    const step = await ExecutionService.updateExecutionStep(id as string, status, actualResult, notes);
+    res.status(200).json(step);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 export const completeExecution = async (req: Request, res: Response) => {
   try {
     const { executionId } = req.params;
