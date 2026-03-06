@@ -2,6 +2,39 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { TestCase, PaginationMeta } from '../types/testCase';
 import { getTestCases, cloneTestCase, deleteTestCase, type GetTestCasesFilters } from '../services/testCaseApi';
+import { Card, CardContent } from '../components/ui/card';
+
+// ── Badge helpers ──────────────────────────────────────────────────────────────
+
+const StatusBadge = ({ status }: { status: string }) => {
+  const styles: Record<string, string> = {
+    APPROVED: 'bg-green-500/15 text-green-300 border border-green-500/30',
+    REVIEW:   'bg-purple-500/15 text-purple-300 border border-purple-500/30',
+    DRAFT:    'bg-slate-500/15 text-slate-400 border border-slate-500/30',
+    ARCHIVED: 'bg-orange-500/15 text-orange-300 border border-orange-500/30',
+  };
+  return (
+    <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${styles[status] ?? styles.DRAFT}`}>
+      {status}
+    </span>
+  );
+};
+
+const PriorityBadge = ({ priority }: { priority: string }) => {
+  const styles: Record<string, string> = {
+    P1: 'bg-red-500/15 text-red-300 border border-red-500/30',
+    P2: 'bg-orange-500/15 text-orange-300 border border-orange-500/30',
+    P3: 'bg-yellow-500/15 text-yellow-300 border border-yellow-500/30',
+    P4: 'bg-blue-500/15 text-blue-300 border border-blue-500/30',
+  };
+  return (
+    <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${styles[priority] ?? 'bg-slate-500/15 text-slate-400'}`}>
+      {priority}
+    </span>
+  );
+};
+
+// ── Component ──────────────────────────────────────────────────────────────────
 
 export const TestCaseList = () => {
   const navigate = useNavigate();
@@ -9,10 +42,10 @@ export const TestCaseList = () => {
   const [testCases, setTestCases] = useState<TestCase[]>([]);
   const [meta, setMeta] = useState<PaginationMeta | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  
+
   // NEW: State to trigger a re-fetch when an item is deleted
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  
+
   // State for our search and filters
   const [filters, setFilters] = useState<GetTestCasesFilters>({
     page: 1,
@@ -73,16 +106,12 @@ export const TestCaseList = () => {
 
   // NEW: Handler for deleting a test case
   const handleDelete = async (id: string) => {
-    // 1. ALWAYS ask for confirmation before deleting!
     if (!window.confirm("Are you sure you want to delete this test case? This cannot be easily undone.")) {
       return;
     }
 
     try {
-      // 2. Call the backend
       await deleteTestCase(id);
-      
-      // 3. Trigger a refetch so the deleted item vanishes from the table
       setRefreshTrigger(prev => prev + 1);
     } catch (error) {
       console.error("Failed to delete:", error);
@@ -90,165 +119,160 @@ export const TestCaseList = () => {
     }
   };
 
+  const selectClass = "bg-slate-950 border border-slate-700 text-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent";
+
   return (
-    <div className="p-8 max-w-7xl mx-auto">
-      {/* Header Section */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Test Cases</h1>
-        <button 
+    <div className="max-w-7xl mx-auto">
+
+      {/* ── Header ── */}
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <p className="text-sm font-medium text-indigo-400 uppercase tracking-widest mb-1">Management</p>
+          <h1 className="text-4xl font-bold text-white">Test Cases</h1>
+        </div>
+        <button
           onClick={() => navigate('/test-cases/create')}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded shadow transition"
+          className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white px-5 py-2.5 rounded-lg font-semibold transition-all shadow-lg shadow-indigo-900/30 text-sm"
         >
           + Create Test Case
         </button>
       </div>
 
-      {/* Filter Bar Section */}
-      <div className="bg-white p-4 rounded-lg shadow mb-6 flex flex-wrap gap-4 border border-gray-100">
-        <input
-          type="text"
-          placeholder="Search title or description..."
-          className="border border-gray-300 rounded px-3 py-2 flex-grow focus:outline-none focus:ring-2 focus:ring-blue-500"
-          value={filters.search}
-          onChange={(e) => handleFilterChange('search', e.target.value)}
-        />
-        <select
-          className="border border-gray-300 rounded px-3 py-2 bg-white text-gray-700"
-          value={filters.priority}
-          onChange={(e) => handleFilterChange('priority', e.target.value)}
-        >
-          <option value="">All Priorities</option>
-          <option value="P1">P1 (Critical)</option>
-          <option value="P2">P2 (High)</option>
-          <option value="P3">P3 (Medium)</option>
-          <option value="P4">P4 (Low)</option>
-        </select>
-        <select
-          className="border border-gray-300 rounded px-3 py-2 bg-white text-gray-700"
-          value={filters.status}
-          onChange={(e) => handleFilterChange('status', e.target.value)}
-        >
-          <option value="">All Statuses</option>
-          <option value="DRAFT">Draft</option>
-          <option value="REVIEW">Review</option>
-          <option value="APPROVED">Approved</option>
-          <option value="ARCHIVED">Archived</option>
-        </select>
-      </div>
+      {/* ── Filter Bar ── */}
+      <Card className="bg-slate-900/60 border-slate-800 mb-6">
+        <CardContent className="pt-4">
+          <div className="flex flex-wrap gap-4 items-end">
+            <div className="flex-grow">
+              <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Search</label>
+              <input
+                type="text"
+                placeholder="Search title or description..."
+                className="w-full bg-slate-950 border border-slate-700 text-slate-200 placeholder:text-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                value={filters.search}
+                onChange={(e) => handleFilterChange('search', e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Priority</label>
+              <select className={selectClass} value={filters.priority} onChange={(e) => handleFilterChange('priority', e.target.value)}>
+                <option value="">All Priorities</option>
+                <option value="P1">P1 (Critical)</option>
+                <option value="P2">P2 (High)</option>
+                <option value="P3">P3 (Medium)</option>
+                <option value="P4">P4 (Low)</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Status</label>
+              <select className={selectClass} value={filters.status} onChange={(e) => handleFilterChange('status', e.target.value)}>
+                <option value="">All Statuses</option>
+                <option value="DRAFT">Draft</option>
+                <option value="REVIEW">Review</option>
+                <option value="APPROVED">Approved</option>
+                <option value="ARCHIVED">Archived</option>
+              </select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-      {/* Data Table Section */}
-      <div className="bg-white rounded-lg shadow overflow-x-auto border border-gray-100">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-gray-50 text-gray-600 uppercase text-xs font-semibold tracking-wider border-b border-gray-200">
-              <th className="py-4 px-6">ID</th>
-              <th className="py-4 px-6">Title</th>
-              <th className="py-4 px-6">Module</th>
-              <th className="py-4 px-6">Priority</th>
-              <th className="py-4 px-6">Status</th>
-              <th className="py-4 px-6">Author</th>
-              <th className="py-4 px-6 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="text-gray-700 text-sm">
-            {isLoading ? (
-              <tr>
-                <td colSpan={7} className="py-12 text-center text-gray-500">
-                  <div className="animate-pulse">Loading test cases...</div>
-                </td>
+      {/* ── Data Table ── */}
+      <Card className="bg-slate-900/60 border-slate-800 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="bg-slate-950/50 border-b border-slate-800">
+                <th className="py-4 px-6 text-xs font-semibold text-slate-400 uppercase tracking-wider">ID</th>
+                <th className="py-4 px-6 text-xs font-semibold text-slate-400 uppercase tracking-wider">Title</th>
+                <th className="py-4 px-6 text-xs font-semibold text-slate-400 uppercase tracking-wider">Module</th>
+                <th className="py-4 px-6 text-xs font-semibold text-slate-400 uppercase tracking-wider">Priority</th>
+                <th className="py-4 px-6 text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</th>
+                <th className="py-4 px-6 text-xs font-semibold text-slate-400 uppercase tracking-wider">Author</th>
+                <th className="py-4 px-6 text-xs font-semibold text-slate-400 uppercase tracking-wider text-right">Actions</th>
               </tr>
-            ) : testCases.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="py-12 text-center text-gray-500">
-                  No test cases found. Try adjusting your filters.
-                </td>
-              </tr>
-            ) : (
-              testCases.map((tc) => (
-                <tr key={tc.id} className="border-b border-gray-100 hover:bg-blue-50/50 transition duration-150">
-                  <td className="py-4 px-6 font-medium text-gray-900">{tc.testCaseId}</td>
-                  <td className="py-4 px-6 font-medium">{tc.title}</td>
-                  <td className="py-4 px-6">
-                    <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs">{tc.module}</span>
-                  </td>
-                  <td className="py-4 px-6">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                      tc.priority === 'P1' ? 'bg-red-100 text-red-700' : 
-                      tc.priority === 'P2' ? 'bg-orange-100 text-orange-700' : 
-                      tc.priority === 'P3' ? 'bg-yellow-100 text-yellow-700' :
-                      'bg-blue-100 text-blue-700'
-                    }`}>
-                      {tc.priority}
-                    </span>
-                  </td>
-                  <td className="py-4 px-6">
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      tc.status === 'APPROVED' ? 'bg-green-100 text-green-700' :
-                      tc.status === 'DRAFT' ? 'bg-gray-100 text-gray-700' :
-                      'bg-purple-100 text-purple-700'
-                    }`}>
-                      {tc.status}
-                    </span>
-                  </td>
-                  <td className="py-4 px-6 text-gray-500">{tc.createdBy?.name || "Unknown"}</td>
-                  
-                  {/* NEW: Updated Actions cell with Flexbox so buttons sit side-by-side */}
-                  <td className="py-4 px-6 text-right flex gap-2 justify-end">
-                    
-                    {/* --- THE NEW EDIT/EXECUTE BUTTON --- */}
-                    <button 
-                      onClick={() => navigate(`/test-cases/${tc.id}/edit`)}
-                      className="bg-indigo-50 text-indigo-600 hover:bg-indigo-500 hover:text-white border border-indigo-200 px-3 py-1 rounded shadow-sm transition duration-150 text-xs font-semibold"
-                    >
-                      Edit / Execute
-                    </button>
-
-                    <button 
-                      onClick={() => handleClone(tc.id)}
-                      className="bg-green-50 text-green-600 hover:bg-green-500 hover:text-white border border-green-200 px-3 py-1 rounded shadow-sm transition duration-150 text-xs font-semibold"
-                    >
-                      Clone
-                    </button>
-                    <button 
-                      onClick={() => handleDelete(tc.id)}
-                      className="bg-red-50 text-red-600 hover:bg-red-500 hover:text-white border border-red-200 px-3 py-1 rounded shadow-sm transition duration-150 text-xs font-semibold"
-                    >
-                      Delete
-                    </button>
+            </thead>
+            <tbody className="divide-y divide-slate-800/60">
+              {isLoading ? (
+                <tr>
+                  <td colSpan={7} className="py-16 text-center text-slate-500">
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-400"></div>
+                      Loading test cases...
+                    </div>
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              ) : testCases.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-16 text-center text-slate-500">
+                    No test cases found. Try adjusting your filters.
+                  </td>
+                </tr>
+              ) : (
+                testCases.map((tc) => (
+                  <tr key={tc.id} className="hover:bg-slate-800/50 transition-colors duration-150">
+                    <td className="py-4 px-6">
+                      <span className="text-sm font-mono text-indigo-400">{tc.testCaseId}</span>
+                    </td>
+                    <td className="py-4 px-6 text-sm font-medium text-slate-200 max-w-xs truncate">{tc.title}</td>
+                    <td className="py-4 px-6">
+                      <span className="bg-slate-800 text-slate-300 px-2 py-1 rounded text-xs">{tc.module}</span>
+                    </td>
+                    <td className="py-4 px-6">
+                      <PriorityBadge priority={tc.priority} />
+                    </td>
+                    <td className="py-4 px-6">
+                      <StatusBadge status={tc.status} />
+                    </td>
+                    <td className="py-4 px-6 text-sm text-slate-400">{tc.createdBy?.name || "Unknown"}</td>
+                    <td className="py-4 px-6 text-right">
+                      <div className="flex gap-2 justify-end">
+                        <button
+                          onClick={() => navigate(`/test-cases/${tc.id}/edit`)}
+                          className="bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/20 border border-indigo-500/30 px-3 py-1 rounded-md text-xs font-semibold transition-colors"
+                        >
+                          Edit / Execute
+                        </button>
+                        <button
+                          onClick={() => handleClone(tc.id)}
+                          className="bg-green-500/10 text-green-300 hover:bg-green-500/20 border border-green-500/30 px-3 py-1 rounded-md text-xs font-semibold transition-colors"
+                        >
+                          Clone
+                        </button>
+                        <button
+                          onClick={() => handleDelete(tc.id)}
+                          className="bg-red-500/10 text-red-300 hover:bg-red-500/20 border border-red-500/30 px-3 py-1 rounded-md text-xs font-semibold transition-colors"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
 
-      {/* Pagination Section */}
+      {/* ── Pagination ── */}
       {meta && meta.totalPages > 1 && (
         <div className="flex justify-between items-center mt-6">
-          <span className="text-sm text-gray-500">
-            Showing Page <span className="font-medium text-gray-900">{meta.currentPage}</span> of <span className="font-medium text-gray-900">{meta.totalPages}</span>
+          <span className="text-sm text-slate-400">
+            Page <span className="font-medium text-slate-200">{meta.currentPage}</span> of{' '}
+            <span className="font-medium text-slate-200">{meta.totalPages}</span>
           </span>
           <div className="flex gap-2">
-            <button 
+            <button
               onClick={() => handlePageChange(meta.currentPage - 1)}
               disabled={meta.currentPage === 1}
-              className={`px-4 py-2 text-sm font-medium rounded-md transition ${
-                meta.currentPage === 1 
-                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 shadow-sm'
-              }`}
+              className="px-4 py-2 text-sm font-medium rounded-lg transition bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"
             >
               Previous
             </button>
-            <button 
+            <button
               onClick={() => handlePageChange(meta.currentPage + 1)}
               disabled={meta.currentPage === meta.totalPages}
-              className={`px-4 py-2 text-sm font-medium rounded-md transition ${
-                meta.currentPage === meta.totalPages 
-                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 shadow-sm'
-              }`}
+              className="px-4 py-2 text-sm font-medium rounded-lg transition bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"
             >
               Next
             </button>

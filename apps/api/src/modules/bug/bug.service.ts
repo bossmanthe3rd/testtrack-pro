@@ -30,6 +30,8 @@ export const createBug = async (data: any, reportedById: string) => {
       executionStepId: data.executionStepId,
       reportedById: reportedById,
       status: "NEW", // All new bugs start as NEW per the requirements
+      // 🟢 ADDED: Tell Prisma to actually save the attachments array!
+      attachments: data.attachments || [],
     },
   });
 

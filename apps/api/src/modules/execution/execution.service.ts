@@ -24,13 +24,12 @@ export const saveExecutionStep = async (executionId: string, stepNumber: number,
   });
 };
 
-export const completeExecution = async (executionId: string) => {
-  // First, get all the steps recorded for this execution
+// 🟢 CHANGED: Added durationOverride parameter
+export const completeExecution = async (executionId: string, durationOverride?: number) => {
   const steps = await prisma.executionStep.findMany({
     where: { executionId }
   });
 
-  // Calculate the overall status based on the steps
   let overallStatus: ExecutionStatus = 'PASS';
   
   const hasFail = steps.some(step => step.status === 'FAIL');
@@ -44,18 +43,20 @@ export const completeExecution = async (executionId: string) => {
   } else if (hasSkipped && steps.length > 0) {
     overallStatus = 'SKIPPED';
   } else if (steps.length === 0) {
-     overallStatus = 'SKIPPED'; // If no steps were executed
+     overallStatus = 'SKIPPED'; 
   }
 
-  // Find the original execution to calculate duration
   const execution = await prisma.execution.findUnique({ where: { id: executionId } });
   if (!execution) throw new Error("Execution not found");
 
   const completedAt = new Date();
-  // Calculate duration in seconds
-  const duration = Math.floor((completedAt.getTime() - execution.startedAt.getTime()) / 1000);
+  
+  // 🟢 CHANGED: Use the paused time from frontend if available, else fallback to raw math
+  let duration = durationOverride;
+  if (duration === undefined) {
+    duration = Math.floor((completedAt.getTime() - execution.startedAt.getTime()) / 1000);
+  }
 
-  // Update the execution record with final results
   return await prisma.execution.update({
     where: { id: executionId },
     data: {

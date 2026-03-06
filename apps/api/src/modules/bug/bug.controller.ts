@@ -6,6 +6,10 @@ export const createBug = async (req: Request, res: Response) => {
   try {
     const reportedById = (req as any).user!.id; 
     const bugData = req.body;
+    
+    // 🟢 SENIOR DEV TRICK: Log the incoming data so we can visually verify it!
+    console.log("📥 INCOMING BUG DATA:", JSON.stringify(bugData, null, 2));
+
     const newBug = await bugService.createBug(bugData, reportedById);
     res.status(201).json({ success: true, data: newBug });
   } catch (error: any) {

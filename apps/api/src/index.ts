@@ -10,11 +10,15 @@ import { authMiddleware } from "./middleware/auth.middleware";
 import { authorize } from "./middleware/role.middleware";
 import testCaseRoutes from './modules/test-case/testCase.routes';
 import testSuiteRoutes from "./modules/test-suite/testSuite.routes";
-// --- NEW: Import Execution Routes ---
 import executionRoutes from "./modules/execution/execution.routes";
 import uploadRoutes from "./routes/upload.routes";
 import bugRoutes from "./modules/bug/bug.routes";
-
+// --- NEW: Import Reports Routes ---
+import reportsRoutes from "./modules/reports/reports.routes";
+import projectRoutes from "./modules/project/project.routes";
+import userRoutes from "./modules/user/user.routes";
+import swaggerUi from 'swagger-ui-express';
+import { swaggerSpec } from './config/swagger';
 const app = express();
 
 // --- 1. MIDDLEWARE ---
@@ -27,7 +31,8 @@ app.use(
 
 app.use(express.json());
 app.use(cookieParser());
-// --- 2. DEBUG LOGGER (NEW) ---
+
+// --- 2. DEBUG LOGGER ---
 // This will print every single request to your terminal so we can see if it's hitting the server
 app.use((req, res, next) => {
   console.log(`🌐 [${new Date().toLocaleTimeString()}] ${req.method} ${req.url}`);
@@ -37,19 +42,23 @@ app.use((req, res, next) => {
   next();
 });
 
+// --- 3. ROUTES ---
 app.use("/api/uploads", uploadRoutes);
 app.use("/api/bugs", bugRoutes);
-
-// --- 3. ROUTES ---
 app.use("/api/auth", authRoutes);
 app.use('/api/test-cases', testCaseRoutes);
 app.use("/api/test-suites", testSuiteRoutes);
-// --- NEW: Register Execution Routes ---
 app.use("/api/executions", executionRoutes);
+// --- NEW: Register Reports Routes ---
+app.use("/api/reports", reportsRoutes);
+app.use("/api/projects", projectRoutes);
+app.use("/api/users", userRoutes);
 
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });
 });
+
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // --- 4. PROTECTED TEST ROUTES ---
 app.get(
@@ -87,4 +96,4 @@ app.use((err: any, req: any, res: any, next: any) => {
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🔗 Health check: http://localhost:${PORT}/health`);
-});   
+}); 

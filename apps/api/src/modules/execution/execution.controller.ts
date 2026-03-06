@@ -4,7 +4,6 @@ import * as ExecutionService from './execution.service';
 export const startExecution = async (req: Request, res: Response) => {
   try {
     const { testCaseId, testRunId } = req.body;
-    // Assuming your auth middleware attaches the user to req.user
     const executedById = (req as any).user.id; 
 
     const execution = await ExecutionService.startExecution(testCaseId, executedById, testRunId);
@@ -29,7 +28,10 @@ export const saveStep = async (req: Request, res: Response) => {
 export const completeExecution = async (req: Request, res: Response) => {
   try {
     const { executionId } = req.params;
-    const finalExecution = await ExecutionService.completeExecution(executionId as string);
+    // 🟢 CHANGED: Extract durationOverride from the body
+    const { durationOverride } = req.body; 
+    
+    const finalExecution = await ExecutionService.completeExecution(executionId as string, durationOverride);
     res.status(200).json(finalExecution);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
