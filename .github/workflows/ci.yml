@@ -2,7 +2,7 @@ name: CI Pipeline
 
 on:
   pull_request:
-    branches: [ develop, main ]
+    branches: [develop, main]
 
 jobs:
   build-and-test:
@@ -47,7 +47,7 @@ jobs:
         with:
           name: coverage-report
           path: coverage/
-deploy-production:
+  deploy-production:
     needs: build-and-test # This is the magic word! It forces the pipeline to wait for tests.
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' # Only deploy if we are pushing to the main branch
@@ -62,7 +62,7 @@ deploy-production:
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
           working-directory: ./apps/web
-          vercel-args: '--prod'
+          vercel-args: "--prod"
 
       - name: Deploy Backend to Render
         # Render provides a unique "Deploy Hook" URL. We just ping it to tell Render to pull the latest code.
