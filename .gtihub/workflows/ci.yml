@@ -5,14 +5,14 @@ on:
     branches: [ develop, main ]
 
 jobs:
-  build:
+  build-and-test:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: 20
@@ -23,8 +23,47 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      - name: Type check
+      - name: Run linting (ESLint)
+        run: pnpm lint
+
+      - name: Run type checking (TypeScript)
         run: pnpm typecheck
 
-      - name: Build apps
+      - name: Run unit tests
+        run: pnpm test:unit
+
+      - name: Run integration tests
+        run: pnpm test:integration
+
+      - name: Build applications
         run: pnpm build
+
+      # Optional E2E testing
+      # - name: Run E2E tests (Playwright)
+      #   run: pnpm test:e2e
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-report
+          path: coverage/
+deploy-production:
+    needs: build-and-test # This is the magic word! It forces the pipeline to wait for tests.
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' # Only deploy if we are pushing to the main branch
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy Frontend to Vercel
+        uses: amondnet/vercel-action@v20
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          working-directory: ./apps/web
+          vercel-args: '--prod'
+
+      - name: Deploy Backend to Render
+        # Render provides a unique "Deploy Hook" URL. We just ping it to tell Render to pull the latest code.
+        run: curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
