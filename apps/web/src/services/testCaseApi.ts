@@ -1,5 +1,5 @@
 import { api } from '../features/auth/api';
-import type { TestCaseListResponse, TestCase } from '../types/testCase';
+import type { TestCaseListResponse, TestCase, TestStep } from '../types/testCase';
 
 export interface GetTestCasesFilters {
     page?: number;
@@ -23,7 +23,10 @@ export const getTestCaseById = async (id: string): Promise<TestCase> => {
     return response.data;
 };
 
-export const updateTestCase = async (id: string, updateData: Partial<TestCase> & { changeSummary?: string }): Promise<TestCase> => {
+export const updateTestCase = async (
+    id: string,
+    updateData: Partial<Omit<TestCase, 'steps'>> & { steps?: Omit<TestStep, 'id' | 'stepNumber'>[], changeSummary?: string }
+): Promise<TestCase> => {
     const response = await api.put(`/api/test-cases/${id}`, updateData);
     // Backend returns { message: "...", data: updatedCase }
     return response.data.data;

@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import * as testCaseApi from "../services/testCaseApi";
 import ExecutionHistory from "../components/ExecutionHistory";
+import type { TestCase, TestStep } from "../types/testCase";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { PlusCircle, Trash2 } from "lucide-react";
 
@@ -29,18 +30,6 @@ const editFormSchema = z.object({
 
 type EditFormValues = z.infer<typeof editFormSchema>;
 
-interface TestCaseDetail {
-  testCaseId: string;
-  version: number;
-  title: string;
-  description?: string;
-  module: string;
-  priority: string;
-  severity: string;
-  type?: string;
-  status: string;
-  steps: Array<{ action: string; testData?: string; expectedResult: string; }>;
-}
 
 // ── Shared style tokens ────────────────────────────────────────────────────────
 const inputCls = "w-full bg-slate-950 border border-slate-700 text-slate-200 placeholder:text-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent";
@@ -53,7 +42,7 @@ export default function EditTestCase() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [testCaseInfo, setTestCaseInfo] = useState<TestCaseDetail | null>(null);
+  const [testCaseInfo, setTestCaseInfo] = useState<TestCase | null>(null);
 
   // ── useForm (UNCHANGED) ────────────────────────────────────────────────────
   const { register, control, handleSubmit, reset, formState: { errors } } = useForm<EditFormValues>({
@@ -82,7 +71,7 @@ export default function EditTestCase() {
           type: data.type || "Functional",
           status: data.status,
           changeSummary: "",
-          steps: (data.steps || []).map((step: TestCaseDetail["steps"][0]) => ({
+          steps: (data.steps || []).map((step: TestStep) => ({
             action: step.action,
             testData: step.testData || "",
             expectedResult: step.expectedResult,
